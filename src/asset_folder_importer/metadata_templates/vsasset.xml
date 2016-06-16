@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),
+Original Owner -->
+
+<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">
+    <group>Asset</group>
+
+    <timespan start="-INF" end="+INF">
+        {% if not externalmeta %}
+        <field>
+            <name>title</name>
+            <value>{{ fileref.filename|e }} ({{ fileref.likely_project|e }})</value>
+        </field>
+        <field>
+            <name>gnm_asset_category</name>
+            <value>Rushes</value>
+        </field>
+        {% endif %}
+
+        <field>
+            <name>gnm_asset_status</name>
+            <value>Ready for Editing</value>
+        </field>
+        <field>
+            <name>gnm_asset_owner</name>
+            <value>{{ fileref.owner|e }}</value>
+        </field>
+        <field>
+            <name>gnm_asset_filename</name>
+            <value>{{ fileref.filepath|e }}/{{ fileref.filename|e }}</value>
+        </field>
+        <field>
+            <name>gnm_asset_file_last_modified</name>
+            <value>{{ fileref.mtime.strftime("%Y-%m-%dT%H:%M:%SZ") }}</value>
+        </field>
+        <field>
+            <name>gnm_rushes_general_original_owner</name>
+            <value>{{ fileref.owner|e }}</value>
+        </field>
+        <field>
+            <name>gnm_asset_createdby</name>
+            <value>{{ fileref.owner|e }}</value>
+        </field>
+        {% if xdcamref.created %}
+        <!--date from XDCAM-->
+        <field>
+            <name>gnm_asset_file_created</name>
+            <value>{{ xdcamref.created.strftime("%Y-%m-%dT%H:%M:%SZ") }}</value>
+        </field>
+        {% elif preluderef.created_date %}
+        <!--date from preluderef-->
+        <field>
+            <name>gnm_asset_file_created</name>
+            <value>{{ preluderef.created_date.strftime("%Y-%m-%dT%H:%M:%SZ") }}</value>
+        </field>
+        {% else %}
+        <!--date from fileref-->
+        <field>
+            <name>gnm_asset_file_created</name>
+            <value>{{ fileref.ctime.strftime("%Y-%m-%dT%H:%M:%SZ") }}</value>
+        </field>
+        {% endif %}
+
+        {% if xdcamref %}
+        <field>
+            <name>xmp_tiff_Model</name>
+            <value>{{ xdcamref.deviceModel|e }}</value>
+        </field>
+        <field>
+            <name>xmp_tiff_Make</name>
+            <value>{{ xdcamref.deviceManufacturer |e}}</value>
+        </field>
+        {%endif %}
+
+        {% if externalmeta %}
+        {{ externalmeta }}
+        {% endif %}
+
+        {% if preluderef or xdcamref or fileref.xdcam_card %}
+
+        <group>
+            <name>RushesGeneralInformation</name>
+            <field>
+                <name>gnm_rushes_general_original_owner</name>
+                <value>{{ fileref.owner|e }}</value>
+            </field>
+            {% if preluderef %}
+            <field>
+                <name>gnm_rushesgeneralinformation_adobe_uuid</name>
+                <value>{{ preluderef.class_id |e}}</value>
+            </field>
+            <field>
+                <!-- this should really be considered as "parent project" -->
+                <name>gnm_rushesgeneralinformation_prelude_project</name>
+                <value>{{ preludeproject.filename |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_adobe_asset_type</name>
+                <value>{{ preluderef.asset_type|e }}</value>
+            </field>
+            {% endif %}
+
+            {% if cubaseref %}
+            <field>
+                <!-- this should really be considered as "parent project" -->
+                <name>gnm_rushesgeneralinformation_prelude_project</name>
+                <value>{{ cubaseref.cubase_project |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_adobe_asset_type</name>
+                <value>Master Clip</value>
+            </field>
+            <field>
+                <name>gnm_rushes_general_media_type</name>
+                <value>Cubase recording</value>
+            </field>
+            {% endif %}
+            {% if xdcamref %}
+            <field>
+                <name>gnm_rushes_general_media_type</name>
+                <value>XDCAM card</value>
+            </field>
+            <field>
+                <name>gnm_rushes_general_original_aspect_ratio</name>
+                <value>{{ xdcamref.videoAspect.replace(':','x')|e }}</value>
+            </field>
+            <field>
+                <name>gnm_rushes_general_original_format</name>
+                <value>{{ xdcamref.videoCodec|e }}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_camera_model</name>
+                <value>{{ xdcamref.deviceModel |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_camera_manufacturer</name>
+                <value>{{ xdcamref.deviceManufacturer |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_lens</name>
+                <value>{{ xdcamref.lensName|e }}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_camera_serial_number</name>
+                <value>{{ xdcamref.deviceSerialNo |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_captured_fps</name>
+                <value>{{ xdcamref.videoCaptureFPS|e }}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_recording_mode</name>
+                <value>{{ xdcamref.recordingMode |e}}</value>
+            </field>
+            <field>
+                <name>gnm_rushesgeneralinformation_xdcam_package_name</name>
+                <value>{{ xdcamref.packageName|e }}</value>
+            </field>
+            {% endif %}
+
+            <field>
+                <name>gnm_rushesgeneralinformation_xdcam_flags</name>
+                {% if fileref.xdcam_card == True %}
+                <value>xdcam_card</value>
+                {% endif %}
+                {% if xdcamref.cacheRecord == True%}
+                <value>cache_record</value>
+                {% endif %}
+            </field>
+
+            {% if preluderef %}
+            <field>
+                <name>gnm_rushesgeneralinformation_adobe_prelude_flags</name>
+                <value>prelude_imported</value>
+                {% if preluderef.skipped_relink == 'TRUE' %}
+                <value>skipped_relink</value>
+                {% endif %}
+            </field>
+            {% endif %}
+        </group>
+        {% endif %}
+    </timespan>
+</MetadataDocument>

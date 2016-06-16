@@ -1,0 +1,28 @@
+#This file tells vsingester to use an external Python module to try to get extra metadata about a given
+#type of file.
+#You need to observe yaml formatting conventions - check out http://www.yaml.org/start.html if you're not familiar
+#
+#Each section should look something like this:
+#name:
+#  match:
+#   - {regex}
+#   - {regex}
+#  module: {module-name}
+#where regex are regular expressions which identify the file, and module-name is the code to run.
+#The system will go through the blocks listed in order, and execute the first one that contains a regular expression
+#matching the filename.  If the code returns None, then it was considered unsuccessful and other blocks matching the file
+#can be run.  If the code returns any hash (even empty), it was considered successful and no other blocks are run.
+
+getty:
+  match:
+    - '^\d+_\w{1,4}\.'
+    - '^\d[a-zA-Z]\d+_\d{1,4}\.'
+    - '^\d[a-zA-Z]\d+_\d{1,4}_\w{1,4}\.'
+    - '^\d+\.'
+  #this must be in your PYTHONPATH!
+  module: asset_folder_importer.providers.getty
+
+associated_press:
+  match:
+    - '^(?P<site_id>\w+)_(?P<format>\d{3,4}[id]\d{2})ESSENCE'
+  module: asset_folder_importer.providers.associated_press

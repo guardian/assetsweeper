@@ -1,0 +1,3 @@
+[submodule "python_vidi"]
+	path = python_vidi
+	url = https://github.com/fredex42/gnmvidispine.git
