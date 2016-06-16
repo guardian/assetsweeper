@@ -30,6 +30,8 @@ class Provider(BaseProvider):
     retry_time = 10
     max_retries = 50
 
+    api_key = "INSERT_HERE"
+
     def lookup(self,filepath,filename,match_data):
         import time
         h = httplib2.Http()
@@ -44,7 +46,7 @@ class Provider(BaseProvider):
         while True:
             getty_id = re.sub(r'_[^_]*$','',getty_id)
             url_string = BASE_URL + "{0}?fields={1}".format(getty_id, "%2C".join(interesting_fields))
-            resp, content = h.request(url_string,headers={'Api-Key': '***REMOVED***', 'Accept': 'application/json'})
+            resp, content = h.request(url_string,headers={'Api-Key': self.api_key, 'Accept': 'application/json'})
             #print resp
 
             code = int(resp['status'])
