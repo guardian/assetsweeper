@@ -1,5 +1,5 @@
-{% set dbuser = salt['pillar.get']('asset_folder_importer:dbuser', 'assetimporter') %}
-{% set dbpass = salt['pillar.get']('asset_folder_importer:dbpass', '***REMOVED***') %}
+{% set dbuser = salt['pillar.get']('asset_folder_importer:dbuser', '{postgres-user}') %}
+{% set dbpass = salt['pillar.get']('asset_folder_importer:dbpass', '{postgres-password}') %}
 
 db_user:
   postgres_user.present:
