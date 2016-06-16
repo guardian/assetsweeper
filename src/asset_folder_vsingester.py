@@ -2,7 +2,6 @@
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_vsingester $Rev: 273 $ $LastChangedDate: 2015-07-28 22:00:39 +0100 (Tue, 28 Jul 2015) $'
-__scriptname__ = 'asset_folder_vsingester'
 
 #this also requires python-setuptools to be installed
 from jinja2 import Environment,PackageLoader
@@ -14,7 +13,7 @@ from vidispine.vs_metadata import VSMetadata
 from asset_folder_importer.database import importer_db
 from asset_folder_importer.config import configfile
 from asset_folder_importer.xdcam_metadata import XDCAMImporter,InvalidDataError
-from pprint import pprint
+from pprint import pprint,pformat
 from optparse import OptionParser
 from time import sleep
 from glob import glob
@@ -27,7 +26,6 @@ import threading
 from Queue import Queue
 from copy import deepcopy
 import asset_folder_importer.externalprovider as externalprovider
-from subprocess import Popen,PIPE
 
 MAXTHREADS = 6
 #suid perl script so we don't need to run the whole shebang as root
@@ -41,10 +39,13 @@ sys.setdefaultencoding('utf-8')
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
 main_log_level = logging.DEBUG
 logfile = "/var/log/plutoscripts/asset_folder_vsingester.log"
-graveyard_folder = "/var/log/plutoscripts/asset_folder_ingester_failed_xml"
+logger = logging.getLogger('vidispine.vs_storage')
+logger.level = logging.DEBUG
 #End configurable parameters
 
 potentialSidecarExtensions = ['.xml','.xmp','.meta','.XML','.XMP']
+
+
 class NotFoundError(StandardError):
     pass
 
@@ -57,7 +58,9 @@ class ImporterThread(threading.Thread):
         self.queue = q
         self.st = deepcopy(storageref)  #vidispine classes probably aren't threadsafe
         #nor is the database interface
-        self.db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
+        self.db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),
+                              username=cfg.value('database_user'),password=cfg.value('database_password'),
+                              elastichosts=cfg.value('elasticsearch'))
         self.found = 0
         self.withItems = 0
         self.imported = 0
@@ -66,7 +69,7 @@ class ImporterThread(threading.Thread):
     def run(self):
         logging.info("In importer_thread::run...")
         while True:
-            (fileref, filepath, rootpath) = self.queue.get(True,timeout=60)  #wait until a queue item is available or time out after 60s
+            (fileref, filepath, rootpath) = self.queue.get(True)  #wait until a queue item is available
             if fileref is None:
                 logging.info("Received null fileref, so teminating")
                 break
@@ -93,6 +96,7 @@ class ImporterThread(threading.Thread):
                 logging.warning(msgstring)
                 logging.warning(traceback.format_exc())
                 db.insert_sysparam("warning",msgstring)
+            self.queue.task_done()
         pass
 
     def setPermissions(self,fileref):
@@ -124,13 +128,6 @@ class ImporterThread(threading.Thread):
 
             try:
                 logging.info("Attempting to import...")
-                #metadata = VSMetadata()
-                ##metadata.setPrimaryGroup('asset')
-                #metadata.addValue('title',os.path.basename(filepath))
-                #metadata.addValue('gnm_asset_category','Rushes')
-
-                #print os.sep
-                #pprint(fileref['filepath'].split(os.sep))
                 try:
                     fileref['likely_project']=fileref['filepath'].split(os.sep)[7]
                 except Exception:
@@ -172,7 +169,8 @@ class ImporterThread(threading.Thread):
                 preludeclip = None
                 preludeproject = None
 
-                preludeclip=db.get_prelude_data(fileref['prelude_ref'])
+                if 'prelude_ref' in fileref:
+                    preludeclip=db.get_prelude_data(fileref['prelude_ref'])
 
                 if preludeclip is None and xdImporter is not None: #if this is a supplementary XDCAM file then try to get prelude metadata for corresponding media
                     for mediaFile in xdImporter.mediaFiles():
@@ -188,7 +186,7 @@ class ImporterThread(threading.Thread):
                         if preludeclip is not None:
                             break
 
-                #pprint(preludeclip)
+                pprint(preludeclip)
                 if preludeclip is not None and preludeclip!={}:
                     preludeproject = db.get_prelude_project(preludeclip['parent_id'])
 
@@ -223,37 +221,19 @@ class ImporterThread(threading.Thread):
                                                'externalmeta': ""})
                     else:
                         raise
+                logging.info(mdXML)
 
-                #run the compiled data through xmllint.  This should ensure that the XML is OK before we send, and also that
-                #any pesky extender UTF-8 chars get escaped.
-                proc = Popen(['xmllint', '--format', '-'],stdin=PIPE,stdout=PIPE,stderr=PIPE)
-                (stdout,stderr) = proc.communicate(mdXML)
-                if proc.returncode!=0:
-                    logging.error("xmllint failed: {0}".format(stderr))
-                    fn = os.path.join(graveyard_folder,os.path.basename(filepath))
-                    logging.error("outputting failed XML to {0}".format(fn))
-                    with open(fn) as f:
-                        f.write(mdXML)
-                    return
-
-                mdXML=stdout
-                #pprint(fileref)
-                #pprint(preludeclip)
-                #pprint(preludeproject)
-
-                #logging.info(mdXML)
-
-                #raise StandardError("Testing")
                 import_tags = []
-                if fileref['mime_type'] and fileref['mime_type'].startswith("video/"):
+                if 'mime_type' in fileref:
+                  if fileref['mime_type'] and fileref['mime_type'].startswith("video/"):
                     import_tags = ['lowres']
-                elif fileref['mime_type'] and fileref['mime_type'].startswith("audio/"):
+                  elif fileref['mime_type'] and fileref['mime_type'].startswith("audio/"):
                     import_tags = ['lowaudio']
-                elif fileref['mime_type'] and fileref['mime_type'].startswith("image/"):
+                  elif fileref['mime_type'] and fileref['mime_type'].startswith("image/"):
                     import_tags = ['lowimage']
-                elif fileref['mime_type'] and fileref['mime_type'] == "application/mxf":
+                  elif fileref['mime_type'] and fileref['mime_type'] == "application/mxf":
                     import_tags = ['lowres']
-                elif fileref['mime_type'] and fileref['mime_type'] == "model/vnd.mts":  #mpeg transport streams are detected as this
+                  elif fileref['mime_type'] and fileref['mime_type'] == "model/vnd.mts":  #mpeg transport streams are detected as this
                     import_tags = ['lowres']
 
                 self.st.debug=False
@@ -332,14 +312,11 @@ class ImporterThread(threading.Thread):
                 print msgstring
                 db.insert_sysparam("warning",msgstring)
 
-        #vsfile.dump()
         db.commit()
         found+=1
 
         return (found,withItems,imported)
 
-        #raise StandardError("Testing")
-        #break
 def potentialSidecarFilenames(filename,isxdcam=False):
     for x in potentialSidecarExtensions:
         potentialFile = re.sub(u'\.[^\.]+',x,filename)
@@ -381,7 +358,7 @@ def get_cubase_data(filepath,filename):
     return None
 
 #This function is the main program, but is contained here to make it easier to catch exceptions
-def innerMainFunc(cfg,db,limit):
+def innerMainFunc(cfg,db):
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
@@ -417,6 +394,13 @@ def innerMainFunc(cfg,db,limit):
         #print "Got file ref:"
         #for k,v in fileref.items():
             #print "\t%s: %s" % (k,v)
+
+        pprint(fileref)
+        if not 'filename' in fileref:
+            logging.error("fileref with no filename: ")
+            logging.error(pformat(fileref))
+            continue
+
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
@@ -435,14 +419,16 @@ def innerMainFunc(cfg,db,limit):
             #found += a
             #withItems += b
             #imported += c
-        if isinstance(limit, int):
-            if n > limit:
-                logging.warning("Reached requested limit of {0} items, stopping for now.".format(limit))
-                break
 
+    logging.info("Waiting for queue to complete processing")
+    input_queue.join()
+
+    logging.info("Signalling thread termination")
     #tell the threads to terminate now
     for t in threads:
         input_queue.put((None,None,None))
+
+    logging.info("Waiting for threads to terminate")
 
     for t in threads:
         t.join()
@@ -463,8 +449,7 @@ def innerMainFunc(cfg,db,limit):
 #Step one. Commandline args.
 parser = OptionParser()
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
-parser.add_option("-f","--force", dest="force", help="run even if it appears that another instance is already running")
-parser.add_option("-l","--limit", dest="limit", help="stop after attempting to import this many files")
+parser.add_option("-f","--force", dest="force", action="store_true", help="run even if it appears that another instance is already running")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
@@ -484,7 +469,9 @@ else:
 logging.info("-----------------------------------------------------------\n\n")
 logging.info("Connecting to database on %s" % cfg.value('database_host', noraise=True))
 
-db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
+db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),
+                 username=cfg.value('database_user'),password=cfg.value('database_password'),
+                 elastichosts=cfg.value('elasticsearch'))
 
 lastruntime = db.lastrun_endtime()
 lastruntimestamp = 0
@@ -493,29 +480,26 @@ if lastruntime is None:
     logging.error("It appears that another instance of premiere_get_referenced_media is already running.")
     if not options.force:
         logging.error("Not continuing because --force is not specified on the commandline")
+        db.start_run()
         db.end_run("already_running")
         exit(1)
     logging.warning("--force has been specified so running anyway")
 else:
     lastruntimestamp = time.mktime(lastruntime.timetuple())
 
-db.start_run(__scriptname__)
+db.start_run()
 
 try:
-    if options.limit is not None:
-        db.insert_sysparam("limit",int(options.limit))
-        db.commit()
-        innerMainFunc(cfg,db,int(options.limit))
-    else:
-        innerMainFunc(cfg, db, None)
+    innerMainFunc(cfg,db)
+
     db.insert_sysparam("exit","success")
-except Exception as e:
+except StandardError as e:
     logging.error("An error occurred:")
     logging.error(str(e.__class__) + ": " + e.message)
     logging.error(traceback.format_exc())
 
     msgstring="{0}: {1}".format(str(e.__class__),e.message)
-    db.cleanuperror()
+#    db.cleanuperror()
     db.insert_sysparam("exit","error")
     db.insert_sysparam("errormsg",msgstring)
     db.insert_sysparam("stacktrace",traceback.format_exc())

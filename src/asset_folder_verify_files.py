@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_verify_files $Rev$ $LastChangedDate$'
-__scriptname__ = 'asset_folder_verify_files'
 
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
@@ -15,7 +14,8 @@ import os.path
 import re
 
 #START MAIN
-LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
+LOGFORMAT = '%(asctime)-15s - [%(name)s] - %(levelname)s - %(message)s'
+
 main_log_level = logging.DEBUG
 #logfile = "/var/log/plutoscripts/verify_files.log"
 logfile = None
@@ -45,14 +45,14 @@ print "Connecting to database on %s" % cfg.value('database_host',noraise=True)
 db = importer_db(__version__,hostname=cfg.value('database_host'),
                  port=cfg.value('database_port'),
                  username=cfg.value('database_user'),
-                 password=cfg.value('database_password'))
+                 password=cfg.value('database_password'),
+                 elastichosts=cfg.value('elasticsearch'))
+
+db.start_run()
+
 print "Checking schema version...",
 db.check_schema_20()
-db.check_schema_21()
-db.check_schema_22()
 print "done."
-
-db.start_run(__scriptname__)
 
 pathreplacematch = re.compile(r'^/srv')
 

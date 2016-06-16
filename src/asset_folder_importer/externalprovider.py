@@ -58,7 +58,6 @@ class VSMetadataList(dict):
 
         return "\n".join(map(lambda x: self._my_tostring(x, encoding="UTF-8"), lines))
 
-
 class ExternalProviderList(object):
     def __init__(self,providerlist):
         import yaml
@@ -154,7 +153,7 @@ if __name__ == '__main__':
     l = ExternalProviderList('footage_providers.yml')
 
     if len(argv) < 2:
-        print("\nRun tests on externalprovider module. Usage: python externalprovider.py {filename-to-query}\n")
+        print "\nRun tests on externalprovider module. Usage: python externalprovider.py {filename-to-query}\n"
         exit(1)
 
     logging.info("running against filename %s" % argv[1])
@@ -165,4 +164,4 @@ if __name__ == '__main__':
 
     templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
     mdTemplate = templateEnv.get_template('vsasset_test.xml')
-    print(mdTemplate.render({'externalmeta': data}))
+    print mdTemplate.render({'externalmeta': data})

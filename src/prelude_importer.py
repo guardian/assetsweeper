@@ -3,7 +3,7 @@
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'prelude_importer $Rev$ $LastChangedDate$'
-__scriptname__ = 'prelude_importer'
+
 
 from optparse import OptionParser
 import os
@@ -20,9 +20,6 @@ parser.add_option("-c","--config", dest="configfile", help="import configuration
 (options, args) = parser.parse_args()
 
 #Step two. Read config
-pprint(args)
-pprint(options)
-
 if options.configfile:
     cfg=configfile(options.configfile)
 else:
@@ -30,19 +27,20 @@ else:
 
 #Now connect to db
 print "Connecting to database on %s" % cfg.value('database_host',noraise=True)
-db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
-db.check_schema_22()
-db.start_run(__scriptname__)
+db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),
+                 username=cfg.value('database_user'),password=cfg.value('database_password'),
+                 elastichosts=cfg.value('elasticsearch'))
+db.start_run()
 
 #Step three. Find some prelude files
 startpath=cfg.value('prelude_home')
 print "Running from '%s'" % startpath
 db.insert_sysparam("startpath",startpath)
 
+n=0
+nclips=0
 st='success'
 try:
-    n=0
-    nclips=0
     if not os.path.exists(startpath):
         msg = "Provided Prelude project path %s does not exist on this server" % startpath
         raise StandardError(msg)
@@ -69,7 +67,6 @@ try:
                     error=e.message
                 )
                 db.insert_sysparam("warning",msg)
-                db.commit()
                 print msg
 
             except InvalidXMLException as e:
@@ -78,15 +75,12 @@ try:
                     error=e.message
                 )
                 db.insert_sysparam("warning",msg)
-                db.commit()
                 print msg
 except Exception as e:
-    msg = "ERROR: {0}: {1}".format(
-        e.__repr__(),
-        e.message
-    )
+    print unicode(e)
+    print traceback.format_exc()
     st='error'
-    db.insert_sysparam("error",msg)
+    db.insert_sysparam("error",unicode(e))
     db.insert_sysparam("traceback",traceback.format_exc())
     db.commit()
 

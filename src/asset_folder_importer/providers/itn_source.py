@@ -1,4 +1,4 @@
-from . import BaseProvider,LookupError
+from . import BaseProvider
 
 
 class Provider(BaseProvider):

@@ -1,8 +1,6 @@
-#!/usr/bin/python
-#REquires: python-psycopg2.x86_64
-
+#!/usr/bin/env pyton
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
-__version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
+__version__ = 'asset_folder_autoconnector $Rev$ $LastChangedDate$'
 
 import os
 from asset_folder_importer.database import *
@@ -21,79 +19,8 @@ import logging
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
 main_log_level = logging.DEBUG
 #logfile = None
-logfile = "/var/log/plutoscripts/asset_folder_sweeper.log"
+logfile = "/var/log/plutoscripts/asset_folder_autoconnector.log"
 #End configurable parameters
-
-
-def posix_get_mime(filepath):
-    try:
-        (out, err) = subprocess.Popen(['/usr/bin/file','-b','--mime-type',filepath],stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-        if out:
-            return out.rstrip('\n')
-        return None
-    except Exception as e:
-        print "Error using /usr/bin/file to get MIME type: %s" % e.message
-        db.insert_sysparam("warning","Error using /usr/bin/file to get MIME type: %s" % e.message)
-        return None
-
-
-def find_files(cfg):
-    #Step three. Find all relevant files and bung 'em in the database
-    startpath = cfg.value('start_path',noraise=False)
-
-    print "Running from '%s'" % startpath
-
-    #mark a file as to be ignored, if any of these regexes match. This will prevent vsingester from importing it.
-    pathShouldIgnore = [
-        'Adobe Premiere Pro Preview Files',
-        '\/\.',  #should ignore a literal dot, but only if it follows a /
-        '\.pk$',
-        '\.PFL$',
-        '\.PFR$',   #Cubase creates these filetypes
-        '\.peak$',
-        '_synctemp', #this is created by PluralEyes
-    ]
-
-    reShouldIgnore = []
-    for expr in pathShouldIgnore:
-        reShouldIgnore.append(re.compile(expr))
-
-    #try:
-    n=0
-    for dirpath,dirnames,filenames in os.walk(startpath):
-        #print dirpath
-        #pprint(filenames)
-        for name in filenames:
-            if name.startswith('.'):
-                continue
-            shouldIgnore = False
-
-            for regex in reShouldIgnore:
-                if regex.search(dirpath) is not None:
-                    shouldIgnore = True
-
-            fullpath = os.path.join(dirpath,name)
-            #print fullpath
-            try:
-                statinfo = os.stat(fullpath)
-                #pprint(statinfo)
-                mt = None
-                try:
-                    (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
-                except Exception as e:
-                    db.insert_sysparam("warning",e.message)
-
-                if mt is None or mt == 'None':
-                    mt = posix_get_mime(fullpath)
-
-                db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
-            except OSError as e:
-                db.insert_sysparam("warning",str(e))
-                if e.errno == 2: #No Such File Or Directory
-                    db.update_file_record_gone(dirpath,name)
-            n+=1
-            print("%d files...\r" %n),
-    return n
 
 #START MAIN
 
@@ -172,27 +99,6 @@ else:
 logging.info("Last run of the script was at %s." % lastruntime)
 
 db.start_run()
-if lockwarning is not None:
-    db.insert_sysparam("warning",lockwarning)
 
-try:
-    db.purge_system_messages(since=timedelta(days=int(cfg.value('system_message_purge_time',noraise=False))))
-except KeyError as e:
-    logging.warning("Unable to purge old system messages as system_message_purge_time is not present in config file")
-except StandardError as e:
-    logging.error("Unable to purge old system messages because of problem: {0}".format(traceback.format_exc()))
-
-try:
-    n=find_files(cfg)
-    db.insert_sysparam("file_records",n)
-    db.insert_sysparam("exit","success")
-    logging.info("Run completed. Found {0} file records.\n".format(n))
-    db.commit()
-except Exception as e:
-    db.insert_sysparam("exit","error")
-    db.insert_sysparam("error",e.message)
-    db.insert_sysparam("traceback",traceback.format_exc())
-    logging.error(traceback.format_exc())
-    db.commit()
-
-db.end_run(status=None)
+for record in db.files_not_connected_to_project():
+    pprint(record)

@@ -5,13 +5,24 @@ from asset_folder_importer.database import *
 from datetime import datetime
 import xml.etree.ElementTree as ET
 import os
+import logging
 
 
-class NotPreludeProjectException(StandardError):
+class PreludeError(StandardError):
     pass
 
-class InvalidXMLException(StandardError):
+
+class NotPreludeProjectException(PreludeError):
     pass
+
+
+class InvalidXMLException(PreludeError):
+    pass
+
+
+class DoesNotExist(PreludeError):
+    pass
+
 
 class preludeclip:
     def __init__(self,data):
@@ -27,6 +38,10 @@ class preludeclip:
             return None
 
         fileref=db.fileId(self.dataContent['FilePath'].encode('utf-8'))
+
+        if fileref is None:
+           raise DoesNotExist(self.dataContent['FilePath'].encode('utf-8'))
+
         db.update_prelude_clip_fileref(self.database_id,fileref)
 
     def commit(self,db,projectref):
@@ -55,12 +70,14 @@ class preludeclip:
         for k,v in self.dataContent.items():
             print "\t%s: %s" % (k,v)
 
+
 class preludeimporter:
     def __init__(self,db,prelude_path):
         self.project_file_path=os.path.dirname(prelude_path)
         self.project_file_name=os.path.basename(prelude_path)
         self.uuid=""
         self.version=""
+        self._logger = logging.getLogger("preludeimporter")
 
         self.clipList=[]
 
@@ -94,10 +111,14 @@ class preludeimporter:
 
         for child_element in root_element:
             if child_element.tag == "MasterClip":
-                clip=preludeclip(child_element.attrib)
-                #clip.dump()
-                clip.commit(db,self.projectid)
-                self.clipList.append(clip)
+                try:
+                    clip=preludeclip(child_element.attrib)
+                    #clip.dump()
+                    clip.commit(db,self.projectid)
+                    self.clipList.append(clip)
+                except DoesNotExist as e:
+                    self._logger.warning("File {0} could not be found in the index".format(e))
+                    db.insert_sysparam("warning","File {0} could not be found in the index".format(e))
 
         db.update_project_nclips(self.nclips(), projectid=self.projectid)
 

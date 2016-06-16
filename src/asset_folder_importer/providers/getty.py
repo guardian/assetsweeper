@@ -1,4 +1,4 @@
-from . import BaseProvider,LookupError
+from . import BaseProvider
 import httplib2
 import json
 import re
@@ -45,15 +45,15 @@ class Provider(BaseProvider):
             getty_id = re.sub(r'_[^_]*$','',getty_id)
             url_string = BASE_URL + "{0}?fields={1}".format(getty_id, "%2C".join(interesting_fields))
             resp, content = h.request(url_string,headers={'Api-Key': '***REMOVED***', 'Accept': 'application/json'})
-            #print resp
+            print resp
 
             code = int(resp['status'])
 
             data = json.loads(content)
-            #pprint(data)
+            pprint(data)
 
-            if code == 403:
-                if 'message' in data and data['message'] == 'Account Over Queries Per Second Limit':
+            if code == 404:
+                if 'messsage' in data and data['message'] == 'Account Over Rate Limit':
                     if retries>=self.max_retries:
                         raise LookupError("Still can't get data after {0} attempts, giving up.".format(retries))
 

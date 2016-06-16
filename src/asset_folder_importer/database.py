@@ -2,6 +2,9 @@ __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = '$Rev$ $LastChangedDate$'
 
 import psycopg2
+from elasticsearch.client import Elasticsearch
+from elasticsearch.exceptions import *
+import elasticsearch.helpers
 import traceback
 import re
 from pprint import pprint
@@ -9,10 +12,9 @@ import platform
 import os
 import datetime as dt
 import logging
+from datetime import datetime, timedelta
 
-
-#useful query:
-#select files.filename,mtime,imported_id,asset_name,prelude_projects.filename,prelude_projects.clips from files left join prelude_clips on (prelude_clips.id=prelude_ref) left join prelude_projects on (prelude_projects.id=prelude_clips.parent_id) where imported_id is not NULL
+DEFAULT_INDEX = "assetimporter"
 
 
 class DataError(StandardError):
@@ -22,197 +24,453 @@ class DataError(StandardError):
 class ArgumentError(StandardError):
     pass
 
+
 class AlreadyLinkedError(StandardError):
     pass
 
+
+class ElasticSearchCommitter(object):
+    DT_SYSTEM = "system"
+    DT_FILE = "file_entry"
+    DT_PROJECT = "prelude_project"
+    DT_PRELUDE = "prelude_entry"
+    DT_SIDECAR = "sidecar"
+
+    class IncompleteCommitError(StandardError):
+        pass
+
+    def __init__(self, hostlist="localhost", indexname=None, commit_interval=100):
+        if indexname is None:
+            raise ValueError("You must supply an index name")
+
+        if not isinstance(hostlist,list):
+            hostlist = [hostlist]
+        self._elastic = Elasticsearch(hostlist)
+        self._actions = []
+        self._indexname = indexname
+        self.commit_interval = commit_interval
+        self._logger = logging.getLogger("ElasticSearchCommitter")
+        self.set_library_loglevel()
+
+    def __del__(self):
+        self.commit()
+
+    @staticmethod
+    def set_library_loglevel(level=logging.ERROR):
+        """
+        Sets the log level of the elasticsearch and urllib libraries to the requested level, or ERROR if none set
+        :param level: level to set to (logging.DEBUG, logging.ERROR, etc.). Defaults to logging.ERROR if nothing set
+        :return: None
+        """
+        eslogger = logging.getLogger('elasticsearch')
+        eslogger.level = level
+        eslogger = logging.getLogger('urllib3.connectionpool')
+        eslogger.level = level
+        eslogger = logging.getLogger('urllib3.util.retry')
+        eslogger.level = level
+
+    def setup_index(self):
+        if self._elastic.indices.exists(index=DEFAULT_INDEX):
+            return
+        self._elastic.indices.create(index=DEFAULT_INDEX,
+                                     body={
+                                         'settings': {
+                                             'number_of_replicas': 0,
+                                             "analysis": {
+                                                  "analyzer": {
+                                                    "path-analyzer": {
+                                                      "type": "custom",
+                                                      "tokenizer": "path-tokenizer"
+                                                    }
+                                                  },
+                                                  "tokenizer": {
+                                                    "path-tokenizer": {
+                                                      "type": "path_hierarchy",
+                                                      "delimiter": "."
+                                                    }
+                                                  }
+                                             }
+                                         },
+                                         'mappings': {
+                                             self.DT_FILE: {
+                                                 "properties": {
+                                                     "filename": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "filepath": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "filepath_analyzed": {
+                                                         "type": "string",
+                                                         "analyzer": "path-analyzer"
+                                                     },
+                                                     "mime": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "ignore": {
+                                                         "type": "boolean"
+                                                     },
+                                                     "imported_id": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "initial_project_id": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     }
+                                                 }
+                                             },
+                                             self.DT_PRELUDE: {
+                                                 "properties": {
+                                                     "asset_name": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "asset_type": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "class_id": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "drop_frame": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "project": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                 }
+                                             },
+                                             self.DT_SIDECAR: {
+                                                 "properties": {
+                                                     "file_ref": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "sidecar_path": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "sidecar_path_analyzed": {
+                                                         "type": "string",
+                                                         "analyzer": "path-analyzer"
+                                                     },
+                                                     "sidecar_name": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                 }
+                                             },
+                                             self.DT_PROJECT: {
+                                                 "properties": {
+                                                     "filepath": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "filepath_analyzed": {
+                                                         "type": "string",
+                                                         "analyzer": "path-analyzer"
+                                                     },
+                                                     "filename": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "uuid": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                     "version": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     },
+                                                 }
+                                             },
+                                             self.DT_SYSTEM: {
+                                                 "properties": {
+                                                     "timestamp": {
+                                                         "type": "date",
+                                                     },
+                                                     "script_version": {
+                                                         "type": "string",
+                                                         "index": "not_analyzed"
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                     })
+
+    def add(self,doc_type,doc_data,doc_id=None):
+        self.enqueue("index",doc_type,doc_data,doc_id)
+
+    def update(self,doc_type,doc_data,doc_id=None):
+        self.enqueue("update",doc_type,{'_retry_on_conflict': 100, 'doc': doc_data},doc_id)
+
+    def delete(self,doc_type,doc_id):
+        self.enqueue("delete",doc_type,None,doc_id)
+
+    def enqueue(self,op,doc_type,doc_data,doc_id):
+        if not isinstance(doc_type,basestring):
+            raise TypeError("doc_type must be a string")
+        if not isinstance(doc_data,dict):
+            raise TypeError("doc_data must be a dict")
+
+        r={
+            '_op_type': op,
+            '_index': self._indexname,
+            '_type': doc_type,
+        }
+        if doc_data is not None:
+            r.update(doc_data)
+            #r['_source'] = doc_data
+
+        if doc_id is not None:
+            r['_id'] = doc_id
+
+        self._actions.append(r)
+
+        if len(self._actions)>self.commit_interval:
+            self.commit()
+
+    def commit(self):
+        try:
+            (success_numbers,error_list) = elasticsearch.helpers.bulk(self._elastic,self._actions)
+        except RequestError:
+            pprint(self._actions)
+            raise
+        except TransportError:
+            pprint(self._actions)
+            raise
+        except elasticsearch.helpers.BulkIndexError:
+            pprint(self._actions)
+            raise
+        self._logger.info("Committed %d items to index" % success_numbers)
+        self._actions = []
+        n=0
+        if success_numbers < n:
+            raise self.IncompleteCommitError("\t\n".join(error_list))
+        return success_numbers
+
+
 class importer_db:
-    def __init__(self,clientversion,hostname="localhost",port="5432",username="",password=""):
+    def __init__(self,clientversion,hostname="localhost",port="5432",username="",password="",elastichosts=""):
         portnum=5432
         try:
             portnum=int(port)
         except Exception:
             pass
 
-        self.conn = psycopg2.connect(database="asset_folder_importer",user=username,password=password,host=hostname,port=portnum)
+        #self.conn = psycopg2.connect(database="asset_folder_importer",user=username,password=password,host=hostname,port=portnum)
         self.clientversion=clientversion
+        self._logger = logging.getLogger('importer_db')
 
-        sqlcmd = """create or replace function upsert_file(fp text, fn text) returns INTEGER as
-        $$
-        begin
-            loop
-                update files set last_seen=now() where filename=fn and filepath=fp returning id;
-                if id then
-                    return id;
-                end if;
-                begin
-                    insert into files (filename,filepath,last_seen) values (fn,fp,now()) returning id;
-                    return id;
-                exception when unique_violation then
-                    -- do nothing, just re-try the update
-                end;
-            end loop;
-        end;
-        $$
-        language plpgsql;
-        """
-        cursor=self.conn.cursor()
-        try:
-            #cursor.execute("drop function if exists upsert_file (text,text)")
-            cursor.execute(sqlcmd)
-            self.conn.commit()
-        except psycopg2.ProgrammingError as e:
-            print "Warning: %s" % e.message
-            self.conn.rollback()
+        if elastichosts is not None:
+            if not isinstance(elastichosts,list):
+                elastichosts = [elastichosts]
+            self._escommitter = ElasticSearchCommitter(elastichosts,DEFAULT_INDEX)
+            self._escommitter.setup_index()
+        else:
+            raise ValueError("This version of importer_db requires at least one Elastic Search host to connect to")
+            #self._escommitter = None
 
     def __del__(self):
-        self.conn.commit()
+        # self.conn.commit()
+        self._escommitter.commit()
 
     def update_schema_20(self):
-        cursor = self.conn.cursor()
-        sqlcmd = """
-        CREATE TABLE deleted_files (
-            id integer NOT NULL,
-            filepath text NOT NULL,
-            filename text NOT NULL,
-            mtime timestamp with time zone,
-            ctime timestamp with time zone,
-            atime timestamp with time zone,
-            imported_id character varying(16),
-            imported_at timestamp without time zone,
-            last_seen timestamp with time zone,
-            size bigint,
-            owner integer,
-            gid integer,
-            prelude_ref integer,
-            ignore boolean DEFAULT false,
-            mime_type character varying(256)
-        );
-        """
-        cursor.execute(sqlcmd)
+        pass
+        # cursor = self.conn.cursor()
+        # sqlcmd = """
+        # CREATE TABLE deleted_files (
+        #     id integer NOT NULL,
+        #     filepath text NOT NULL,
+        #     filename text NOT NULL,
+        #     mtime timestamp with time zone,
+        #     ctime timestamp with time zone,
+        #     atime timestamp with time zone,
+        #     imported_id character varying(16),
+        #     imported_at timestamp without time zone,
+        #     last_seen timestamp with time zone,
+        #     size bigint,
+        #     owner integer,
+        #     gid integer,
+        #     prelude_ref integer,
+        #     ignore boolean DEFAULT false,
+        #     mime_type character varying(256)
+        # );
+        # """
+        # cursor.execute(sqlcmd)
 
     def update_schema_21(self):
-        cursor = self.conn.cursor()
-        sqlcmd = """
-        ALTER TABLE edit_projects ADD COLUMN valid boolean,
-            ADD COLUMN problem text,
-            ADD COLUMN problem_detail text;
-        """
-        cursor.execute(sqlcmd)
-        #self.conn.commit()
+        pass
+        # cursor = self.conn.cursor()
+        # sqlcmd = """
+        # ALTER TABLE edit_projects ADD COLUMN valid boolean,
+        #     ADD COLUMN problem text,
+        #     ADD COLUMN problem_detail text;
+        # """
+        # cursor.execute(sqlcmd)
+        # self.conn.commit()
 
-    def update_schema_22(self):
-        cursor = self.conn.cursor()
-        sqlcmd = """
-        CREATE TABLE run_history (
-            scriptname text NOT NULL,
-            start_time timestamp with time zone,
-            end_time timestamp with time zone,
-            pid integer NOT NULL,
-            host character varying(64)
-        );
-        """
-        cursor.execute(sqlcmd)
-        sqlcmd = "CREATE INDEX run_history_scriptname on run_history (scriptname)"      
-        cursor.execute(sqlcmd)
-        sqlcmd = "CREATE INDEX run_history_hostpid on run_history (pid,host)"
-        cursor.execute(sqlcmd)
-        sqlcmd = "create index system_pid on system (pid)"
-	cursor.execute(sqlcmd)
-	sqlcmd = "create index system_key on system (key);"
-	cursor.execute(sqlcmd)
- 
     def _has_table(self,tablename,schemaname="public"):
-        cursor = self.conn.cursor()
-        sqlcmd = """
-        SELECT EXISTS (
-            SELECT 1
-            FROM   pg_catalog.pg_class c
-            JOIN   pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-            WHERE  n.nspname = %s
-            AND    c.relname = %s
-            AND    c.relkind = 'r'
-        );
-        """
-        logging.debug("Checking for existence of table {0} in schema {1}".format(tablename,schemaname))
-        #logging.debug(sqlcmd)
-        cursor.execute(sqlcmd, (schemaname,tablename))
-        row = cursor.fetchone()
-        return row[0]
+        pass
+        # cursor = self.conn.cursor()
+        # sqlcmd = """
+        # SELECT EXISTS (
+        #     SELECT 1
+        #     FROM   pg_catalog.pg_class c
+        #     JOIN   pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        #     WHERE  n.nspname = %s
+        #     AND    c.relname = %s
+        #     AND    c.relkind = 'r'
+        # );
+        # """
+        # logging.debug("Checking for existence of table {0} in schema {1}".format(tablename,schemaname))
+        # #logging.debug(sqlcmd)
+        # cursor.execute(sqlcmd, (schemaname,tablename))
+        # row = cursor.fetchone()
+        # return row[0]
 
     def _has_column(self,tablename,columnname):
-        #select column_name from information_schema.columns where table_name='edit_projects' and column_name='clips'
-        cursor = self.conn.cursor()
-        sqlcmd="select column_name from information_schema.columns where table_name=%s and column_name=%s"
-        logging.debug("Checking for existence of column {0} in table {1}".format(tablename,columnname))
-        cursor.execute(sqlcmd, (tablename,columnname))
-        if cursor.fetchone() is not None:
-            return True
-        return False
+        pass
+        # #select column_name from information_schema.columns where table_name='edit_projects' and column_name='clips'
+        # cursor = self.conn.cursor()
+        # sqlcmd="select column_name from information_schema.columns where table_name=%s and column_name=%s"
+        # logging.debug("Checking for existence of column {0} in table {1}".format(tablename,columnname))
+        # cursor.execute(sqlcmd, (tablename,columnname))
+        # if cursor.fetchone() is not None:
+        #     return True
+        # return False
 
     def check_schema_20(self):
-        if not self._has_table('deleted_files'):
-            self.update_schema_20()
+        pass
+        # if not self._has_table('deleted_files'):
+        #     self.update_schema_20()
 
     def check_schema_21(self):
-        if not self._has_column('edit_projects','valid'):
-            self.update_schema_21()
+        pass
+        # if not self._has_column('edit_projects','valid'):
+        #     self.update_schema_21()
 
-    def check_schema_22(self):
-        if not self._has_table('run_history'):
-            self.update_schema_22()
-            self.conn.commit()
+    def make_sysparam_docid(self):
+        return "run_{0}_sysparams".format(os.getpid())
 
     def insert_sysparam(self,key,value):
-        cursor=self.conn.cursor()
-        for attempt in range(1,10):
-            try:
-                cursor.execute("insert into system (key,value,pid) values (%s,%s,%s)", (key, value, os.getpid()))
-                break
-            except psycopg2.InternalError: #if we have an aborted transaction, cleanup and then re-try
-                self.conn.rollback()
-                continue
+        #cursor=self.conn.cursor()
+        #for attempt in range(1,10):
+            # try:
+            #     cursor.execute("insert into system (key,value,pid) values (%s,%s,%s)", (key, value, os.getpid()))
+            #     break
+            # except psycopg2.InternalError: #if we have an aborted transaction, cleanup and then re-try
+            #     self.conn.rollback()
+            #     continue
+            #try:
+        doc = {}
+        doc[key]=value
+        doc['timestamp'] = datetime.now()
+        doc_id = self.make_sysparam_docid()
+
+        self._escommitter.update(ElasticSearchCommitter.DT_SYSTEM,doc,doc_id)
 
     def purge_system_messages(self,since):
-        from datetime import timedelta
         if not isinstance(since,timedelta):
             raise TypeError("You need to provide a timedelta to this function")
 
-        timestr = 'P{years}-{months}-{days}'.format(years=0,months=0,days=int(since.days))
-        sqlcmd = "delete from system where now()-timestamp > '{0}'".format(timestr)
-        #print "sql command is %s" % sqlcmd
-        cursor = self.conn.cursor()
-        cursor.execute(sqlcmd)
+        #timestr = 'P{years}-{months}-{days}'.format(years=0,months=0,days=int(since.days))
+        # sqlcmd = "delete from system where now()-timestamp > '{0}'".format(timestr)
+        # #print "sql command is %s" % sqlcmd
+        # cursor = self.conn.cursor()
+        # cursor.execute(sqlcmd)
+        time_limit = datetime.now() - since
+
+        #empty out the commit buffer
+        self._escommitter.commit()
+
+        for item in elasticsearch.helpers.scan(self._escommitter._elastic,
+                                   index=self._escommitter._indexname,
+                                   query={
+                                       'query': {
+                                           'filtered': {
+                                               'filter': {
+                                                   'range': {
+                                                       'timestamp': {
+                                                           #this format seems to work...
+                                                           'lt': time_limit.strftime("%Y-%m-%dT%H:%M:%S")
+                                                       }
+                                                   }
+                                               }
+                                           }
+                                       }
+                                   }):
+            self._escommitter.delete(ElasticSearchCommitter.DT_SYSTEM,item['_id'])
+
+        #make sure that they're done
+        self._escommitter.commit()
+
 
     def commit(self):
-        self.conn.commit()
-
-    def cleanuperror(self):
+        #self.conn.commit()
         try:
-            self.conn.commit()
-        except Exception:
+            self._escommitter.commit()
+        except RequestError:
             pass
 
-        self.conn.rollback()
+    def cleanuperror(self):
+        pass
+        # try:
+        #     self.conn.commit()
+        # except Exception:
+        #     pass
+        #
+        # self.conn.rollback()
 
 # select * from system where ((key='exit' and value like '%') or (key='script_version' or key='run_start'))
 #  and pid in (select pid from system where key='script_version' and value like 'premiere_get_referenced_media%')
 #  order by timestamp desc
 
-
     def pid_for_status(self,statusid,limit=1):
         if not statusid:
             raise ArgumentError("pid_for_status needs a status id")
 
-        cur = self.conn.cursor()
-        cur.execute("select pid from system where key='exit' and value='%s' order by timestamp desc limit %s", (statusid,limit))
-        for result in cur.fetchall():
-            yield result[0]
+        # cur = self.conn.cursor()
+        # cur.execute("select pid from system where key='exit' and value='%s' order by timestamp desc limit %s", (statusid,limit))
+        # for result in cur.fetchall():
+        #     yield result[0]
+        data = self._escommitter._elastic.search(index=DEFAULT_INDEX,
+                                                 body={'query': {
+                                                     'filtered': {
+                                                         'filter': {
+                                                             'match': {
+                                                                 'exit': statusid
+                                                             }
+                                                         }
+                                                     }
+                                                 }})
+        self._logger.debug('Got {0} results'.format(data['hits']['total']))
+        for doc in data['hits']['hits']:
+            if 'pid' in doc:
+                yield doc['_source']['pid']
+            else:
+                self._logger.error('system doc {0} does not have a pid associated with it'.format(doc['_id']))
 
     def lastrun_endtime(self, status=None):
-        return self.lastrun_gettime('run_end', status=status)
+        try:
+            return self.lastrun_gettime('run_end', status=status)
+        except DataError as e:
+            self._logger.warning(e)
+            return None
 
     def lastrun_starttime(self, status=None):
-        return self.lastrun_gettime('run_start', status=status)
+        try:
+            return self.lastrun_gettime('run_start', status=status)
+        except DataError as e:
+            self._logger.warning(e)
+            return None
 
     def lastrun_gettime(self, field, status=None):
         if not self.clientversion:
@@ -225,27 +483,83 @@ class importer_db:
         scriptname = matches.group(1)
         #logging.debug("database::lastrun_endtime - script name determined as %s",scriptname)
 
-        if status is None:
-            querystring = "select value from system where key='{0}' and pid=(select pid from system where key='script_version' and value like '{1}%' order by timestamp desc limit 1)".format(field, scriptname)
-        else:
-            querystring = """select value from system where key='{0}'
-                            and pid in (select pid from system where key='script version' and value like '{1}%'
-                                and pid in (select pid from system where key='exit' and value='{2}')) limit 1
-                        """.format(field,scriptname,status)
+        filterlist = [
+            {
+                "prefix": {
+                    "script_version": scriptname
+                }
+            }
+        ]
 
-        cursor = self.conn.cursor()
-        cursor.execute(querystring)
-        result = cursor.fetchone()
+        # if status is None:
+        #     querystring = "select value from system where key='{0}' and pid=(select pid from system where key='script_version' and value like '{1}%' order by timestamp desc limit 1)".format(field, scriptname)
+        # else:
+        #     querystring = """select value from system where key='{0}'
+        #                     and pid in (select pid from system where key='script version' and value like '{1}%'
+        #                         and pid in (select pid from system where key='exit' and value='{2}')) limit 1
+        #                 """.format(field,scriptname,status)
+        if status is not None:
+            filterlist.append({
+                "match": {
+                    "exit": status
+                }
+            })
 
-        if result is None:
-            return None #this means that the script is either still running or crashed last time around
+        try:
+            data = self._escommitter._elastic.search(index=DEFAULT_INDEX,
+                                          body={
+                                              'query': {
+                                                  'filtered': {
+                                                      'filter': {
+                                                          'and': filterlist
+                                                      }
+                                                  }
+                                              },
+                                              'sort': {
+                                                  'timestamp': {
+                                                      'order': 'desc'
+                                                  }
+                                              }
+                                          },
+                                          size=1)
+        except TransportError as e:
+            pprint({
+                  'query': {
+                      'filtered': {
+                          'filter': {
+                              'and': filterlist
+                          }
+                      }
+                  },
+                  'sort': {
+                      'timestamp': {
+                          'order': 'desc'
+                      }
+                  }
+              })
+            raise
 
-        timestamp = dt.datetime.strptime(result[0],"%Y-%m-%dT%H:%M:%S.%f")
+        if data['hits']['total'] == 0:
+            return None
 
-        return timestamp
+        doc = data['hits']['hits'][0]
+        if not field in doc:
+            raise DataError("returned system status doc had no {0} field".format(field))
+        return doc[field]
+
+        # cursor = self.conn.cursor()
+        # cursor.execute(querystring)
+        # result = cursor.fetchone()
+        #
+        # if result is None:
+        #     return None #this means that the script is either still running or crashed last time around
+        #
+        # timestamp = dt.datetime.strptime(result[0],"%Y-%m-%dT%H:%M:%S.%f")
+        #
+        # return timestamp
 
     def mark_id_as_deleted(self, id):
-        if not isinstance(id,int): raise ValueError()
+        #if not isinstance(id,int): raise ValueError()
 
         sqlcmd = """
         insert into deleted_files
@@ -254,77 +568,55 @@ class importer_db:
             from files
             where id=%s
         """
-        cursor=self.conn.cursor()
-        cursor.execute(sqlcmd,[id])
+        #self._escommitter.delete(doc_type=ElasticSearchCommitter.DT_FILE,doc_id=id)
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_id=id,
+                                 doc_data={
+                                     'deleted': True,
+                                     'deleted_at': datetime.now(),
+                                 })
 
-        sqlcmd = "update files set prelude_ref=NULL where id=%s"
-        cursor.execute(sqlcmd,[id])
-
-        sqlcmd = "delete from prelude_clips where file_reference=%s"
-        cursor.execute(sqlcmd,[id])
-
-        sqlcmd = "delete from edit_project_clips where file_ref=%s"
-        cursor.execute(sqlcmd,[id])
-
-        sqlcmd = "delete from file_meta where file_id=%s"
-        cursor.execute(sqlcmd,[id])
-
-        sqlcmd = "delete from sidecar_files where file_ref=%s"
-        cursor.execute(sqlcmd,[id])
-
-        sqlcmd = "delete from files cascade where id=%s"
-        cursor.execute(sqlcmd,[id])
-
-        self.conn.commit()
-
-    def start_run(self,scriptname):
-        import socket
+    def start_run(self):
+        self._escommitter.add(doc_type=ElasticSearchCommitter.DT_SYSTEM,
+                              doc_data={},
+                              doc_id=self.make_sysparam_docid())
         self.insert_sysparam('running_host',platform.node())
         self.insert_sysparam('script_version',self.clientversion)
         self.insert_sysparam('python_version',platform.python_version())
         self.insert_sysparam('OS',platform.system())
         self.insert_sysparam('OS_release',platform.release())
         self.insert_sysparam('OS_version',platform.version())
-        self.insert_sysparam('run_start',dt.datetime.now().isoformat('T'))
-        cursor = self.conn.cursor()
-        # CREATE TABLE run_history (
-        #     id integer NOT NULL,
-        #     scriptname text NOT NULL,
-        #     start_time timestamp with time zone,
-        #     end_time timestamp with time zone,
-        #     pid integer NOT NULL,
-        #     host character varying(64)
-        # );
-        cursor.execute("insert into run_history (scriptname,start_time,pid,host) values (%s,%s,%s,%s)",
-                       (scriptname,dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
-        self.conn.commit()
+        self.insert_sysparam('run_start',dt.datetime.now())
+        #self.conn.commit()
+        self.commit()
 
     def end_run(self,status=None):
-        import socket
-        self.insert_sysparam('run_end',dt.datetime.now().isoformat('T'))
+        self.insert_sysparam('run_end',dt.datetime.now())
         if status is not None:
             self.insert_sysparam('exit',status)
-        cursor=self.conn.cursor()
-        cursor.execute("update run_history set end_time=%s where pid=%s and host=%s",
-                       (dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
-        self.conn.commit()
+        #self.conn.commit()
 
     def project_type_for_extension(self,xtn,desc=None,opens_with=None):
-        cursor = self.conn.cursor()
+        pass
+        # cursor = self.conn.cursor()
+        #
+        # cursor.execute("select id from edit_project_types where extension='%s'" % xtn)
+        # result=cursor.fetchone()
+        #
+        # if result is None:
+        #     cursor.execute("insert into edit_project_types (extension,description,opens_with) values (%s,%s,%s) returning id", (xtn,desc,opens_with))
+        #     result=cursor.fetchone()
+        #
+        # id=result[0]
+        #
+        # return id
 
-        cursor.execute("select id from edit_project_types where extension='%s'" % xtn)
-        result=cursor.fetchone()
-
-        if result is None:
-            cursor.execute("insert into edit_project_types (extension,description,opens_with) values (%s,%s,%s) returning id", (xtn,desc,opens_with))
-            result=cursor.fetchone()
-
-        id=result[0]
-
-        return id
+    @staticmethod
+    def make_doc_id(doc):
+        doc_id = re.sub('^[\w\d]','',doc['filepath']+doc['filename'])
+        return doc_id
 
     def upsert_edit_project(self,filepath,filename,uuid,version,desc=None,opens_with=None):
-        cursor = self.conn.cursor()
+        #cursor = self.conn.cursor()
 
         matches=re.search(u'(\.[^\.]+)$',filename)
         file_xtn=""
@@ -333,21 +625,32 @@ class importer_db:
         else:
             raise ArgumentError("Filename %s does not appear to have a file extension" % filename)
 
-        typenum=self.project_type_for_extension(file_xtn,desc=desc,opens_with=opens_with)
+        #typenum=self.project_type_for_extension(file_xtn,desc=desc,opens_with=opens_with)
 
-        try:
-            cursor.execute("insert into edit_projects (filename,filepath,type,lastseen,valid) values (%s,%s,%s,now(),true) returning id", (filename,filepath,typenum))
-        except psycopg2.IntegrityError as e:
-            self.conn.rollback()
-            cursor.execute("update edit_projects set lastseen=now(), valid=true where filename=%s and filepath=%s returning id", (filename,filepath))
+        doc = {
+            'filename': filename,
+            'filepath': filepath,
+            'lastseen': datetime.now(),
+            'valid': True,
+            'desc': desc,
+            'opens_with': opens_with
+        }
+        doc_id = self.make_doc_id(doc)
+        self._escommitter.add(ElasticSearchCommitter.DT_PROJECT,doc,doc_id)
 
-        result = cursor.fetchone()
-        id = result[0]
-
-        sqlcmd="update edit_projects set uuid=%s, version=%s where id=%s"
-        cursor.execute(sqlcmd, (uuid,version,id))
-        self.conn.commit()
-        return id
+        # try:
+        #     cursor.execute("insert into edit_projects (filename,filepath,type,lastseen,valid) values (%s,%s,%s,now(),true) returning id", (filename,filepath,typenum))
+        # except psycopg2.IntegrityError as e:
+        #     self.conn.rollback()
+        #     cursor.execute("update edit_projects set lastseen=now(), valid=true where filename=%s and filepath=%s returning id", (filename,filepath))
+        #
+        # result = cursor.fetchone()
+        # id = result[0]
+        #
+        # sqlcmd="update edit_projects set uuid=%s, version=%s where id=%s"
+        # cursor.execute(sqlcmd, (uuid,version,id))
+        # self.conn.commit()
+        return doc_id
 
     def log_project_issue(self,filepath,filename,problem="",detail="",desc=None,opens_with=None):
         cursor = self.conn.cursor()
@@ -359,327 +662,399 @@ class importer_db:
         else:
             raise ArgumentError("Filename %s does not appear to have a file extension" % filename)
 
-        typenum=self.project_type_for_extension(file_xtn,desc=desc,opens_with=opens_with)
+        #typenum=self.project_type_for_extension(file_xtn,desc=desc,opens_with=opens_with)
 
-        try:
-            cursor.execute("""insert into edit_projects (filename,filepath,type,problem,problem_detail,lastseen,valid)
-            values (%s,%s,%s,%s,%s,now(),false) returning id""", (filename,filepath,typenum,problem,detail))
-        except psycopg2.IntegrityError as e:
-            print str(e)
-            print traceback.format_exc()
-            self.conn.rollback()
-            cursor.execute("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
-        #print cursor.mogrify("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
-        result=cursor.fetchone()
-        id = result[0]
-        self.conn.commit()
-        return id
+        doc = {
+            'filename': filename,
+            'filepath': filepath,
+            'problem': problem,
+            'problem_detail': detail,
+            'lastseen': datetime.now(),
+            'valid': False
+        }
+        doc_id = self.make_doc_id(doc)
+        self._escommitter.update(ElasticSearchCommitter.DT_PROJECT,doc,doc_id)
+
+        # try:
+        #     cursor.execute("""insert into edit_projects (filename,filepath,type,problem,problem_detail,lastseen,valid)
+        #     values (%s,%s,%s,%s,%s,now(),false) returning id""", (filename,filepath,typenum,problem,detail))
+        # except psycopg2.IntegrityError as e:
+        #     print str(e)
+        #     print traceback.format_exc()
+        #     self.conn.rollback()
+        #     cursor.execute("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
+        # #print cursor.mogrify("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
+        # result=cursor.fetchone()
+        # id = result[0]
+        # self.conn.commit()
+        return doc_id
 
     def link_file_to_edit_project(self,fileid,projectid):
-        cursor=self.conn.cursor()
-
-        cursor.execute("select count(id) from edit_project_clips where file_ref=%s and project_ref=%s", (fileid,projectid))
-        result=cursor.fetchone()
-
-        if result[0]>0:
-            raise AlreadyLinkedError("File id %s is already linked to project %s" % (fileid,projectid))
-
-        cursor.execute("insert into edit_project_clips (file_ref,project_ref) values (%s,%s)", (fileid,projectid))
+        # cursor=self.conn.cursor()
+        #
+        # cursor.execute("select count(id) from edit_project_clips where file_ref=%s and project_ref=%s", (fileid,projectid))
+        # result=cursor.fetchone()
+        #
+        # if result[0]>0:
+        #     raise AlreadyLinkedError("File id %s is already linked to project %s" % (fileid,projectid))
+        #
+        # cursor.execute("insert into edit_project_clips (file_ref,project_ref) values (%s,%s)", (fileid,projectid))
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_data={'parent_project': projectid},doc_id=fileid)
 
     def update_file_record_gone(self,filepath,filename):
-        cursor = self.conn.cursor()
-        self.conn.commit()
+        # cursor = self.conn.cursor()
+        # self.conn.commit()
+        #
+        # try:
+        #     cursor.execute("update files set ignore=true where filename=%s and filepath=%s", (filename, filepath))
+        # except Exception as e:
+        #     logging.warning("Unable to update to ignore gone file: %s" % str(e))
+        #     self.insert_sysparam("warning",str(e))
 
-        try:
-            cursor.execute("update files set ignore=true where filename=%s and filepath=%s", (filename, filepath))
-        except Exception as e:
-            logging.warning("Unable to update to ignore gone file: %s" % str(e))
-            self.insert_sysparam("warning",str(e))
+        doc = self.fileRecord(os.path.join(filepath,filename))
+        doc_id = doc['id']
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_data={'ignore': True},doc_id=doc_id)
 
     def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
-        cursor=self.conn.cursor()
-
-        self.conn.commit()
+        # cursor=self.conn.cursor()
+        #
+        # self.conn.commit()
         #print "trace: upsert_file_record: %s/%s" %(filepath,filename)
 
         #sqlcmd="select * from upsert_file('%s','%s')" % (filepath,filename)
         #print "about to exec %s" %sqlcmd
 
         #cursor.execute(sqlcmd)
-        try:
-            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (filename,filepath))
-        except psycopg2.IntegrityError as e:
-            #if e.startswith('duplicate key'):
-            self.conn.rollback()
-            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (filename, filepath))
-
-        result=cursor.fetchone()
-        #pprint(result)
-        id=result[0]
-        try:
-            if result[1] == True:
-                ignore = True
-        except Exception as e:
-            logging.warning("An error occurred: " + str(e) + " trying to get ignore flag")
-
-        sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
-            mt="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_mtime)+" * INTERVAL '1 second')",
-            at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
-            ct="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_ctime)+" * INTERVAL '1 second')",
-        )
-        #     size=statinfo.st_size,
-        #     oid=statinfo.st_uid,
-        #     gid=statinfo.st_gid,
-        #     mime=mimetype,
-        #     id=id
-        # )
-        #print "about to exec %s" % sqlcmd
-        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,id))
-
+        doc = {
+            'filename': filename,
+            'filepath': filepath,
+            'filepath_analyzed': filepath,
+            'mtime': datetime.utcfromtimestamp(statinfo.st_mtime),
+            'atime': datetime.utcfromtimestamp(statinfo.st_atime),
+            'ctime': datetime.utcfromtimestamp(statinfo.st_ctime),
+            'size': statinfo.st_size,
+            'oid': statinfo.st_uid,
+            'gid': statinfo.st_gid,
+            'mime': mimetype,
+            'ignore': False,
+            'lastseen': datetime.now()
+        }
         if ignore is not None:
-            cursor.execute("update files set ignore={ign} where id={id}".format(
-                ign=ignore,
-                id=id
-            ))
+            doc['ignore'] = ignore
 
-        self.conn.commit()
-        #raise StandardError("Exiting after first iteration for testing")
+        self._escommitter.add(doc_type=ElasticSearchCommitter.DT_FILE,doc_id=self.make_doc_id(doc),doc_data=doc)
+
 
     def fileRecord(self,path):
-        cursor=self.conn.cursor()
+        #cursor=self.conn.cursor()
 
-        #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
+        # #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
+        #
+        # #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
+        #
+        # cursor.execute("select * from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
+        # fields = map(lambda x: x[0], cursor.description)
+        # result=cursor.fetchone()
+        #
+        # if result:
+        #     #print "got id %s" % result[0]
+        #     return dict(zip(fields,result))
+        # return None
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
-        cursor.execute("select * from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
-        fields = map(lambda x: x[0], cursor.description)
-        result=cursor.fetchone()
-
-        if result:
-            #print "got id %s" % result[0]
-            return dict(zip(fields,result))
-        return None
+        q={
+                                               'query': {
+                                                   'filtered': {
+                                                       'filter': {
+                                                           'and':[
+                                                               {
+                                                               'term': {
+                                                                   'filepath': os.path.dirname(path)
+                                                               }},
+                                                               {'term': {
+                                                                   'filename': os.path.basename(path)
+                                                               }
+                                                               }
+                                                           ]
+                                                       }
+                                                   }
+                                               }
+                                           }
+        #pprint(q)
+        result = self._escommitter._elastic.search(index=DEFAULT_INDEX,
+                                           body=q)
+        if result['hits']['total'] == 0:
+            return None
+        r = result['hits']['hits'][0]['_source']
+        r['id'] = result['hits']['hits'][0]['_id']
+        return self._fix_dates(r)
 
     def fileId(self,path):
-        cursor=self.conn.cursor()
-
-        #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
-        cursor.execute("select id from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
-        result=cursor.fetchone()
-
-        if result:
-            #print "got id %s" % result[0]
-            return result[0]
+        rec = self.fileRecord(path)
+        if rec is not None:
+            return rec['id']
         return None
 
     def filesForVSID(self,vsid=None,showIgnore=False):
-        queryAppend = " and ignore!=TRUE"
-        if showIgnore==True:
-            queryAppend = ""
-        if vsid is not None:
-            sqlcmd = "select * from files where imported_id='{0}'{1}".format(vsid,queryAppend)
+        filter_list = [
+#            {
+#                'or': [
+#                    {"missing": {'field': "deleted"}},
+#                    {
+#                        'deleted': False
+#                    }
+#                ]
+#            }
+        ]
+
+        if vsid is None:
+            filter_list.append({'missing': {'field': 'imported_id'}})
         else:
-            sqlcmd = "select * from files where imported_id is NULL" + queryAppend
+            filter_list.append({
+                'term': {
+                    'imported_id': vsid
+                }
+            })
 
-        print "About to run %s" %sqlcmd
+        if showIgnore == False:
+            filters = {
+                #show anything with either ignore field not set (not yet checked) or false
+                'or': [
+                    {
+                        'missing': {
+                            "field": 'ignore'
+                        }
+                    },
+                    {
+                        'term': {
+                            "ignore": False
+                        }
+                    }
+                ]
+            }
+            #filter_list.append(filters)
 
-        cursor=self.conn.cursor()
-        cursor.execute(sqlcmd)
+        for item in elasticsearch.helpers.scan(self._escommitter._elastic,
+                                               index=DEFAULT_INDEX,
+                                               query={
+                                                    'query': {
+                                                        'filtered': {
+                                                            'filter': {
+                                                                'and': filter_list
+                                                            }
+                                                        }
+                                                    }
+                                               }):
+            doc = item['_source']
+            doc['id'] = item['_id']
+            yield self._fix_dates(doc)
+        # for result in cursor:
+        #     yield dict(zip(fields,result))
 
-        fields = map(lambda x: x[0], cursor.description)
+    def files_not_connected_to_project(self):
+        filter_list = [
+            {
+                'match': {
+                    '_type': ElasticSearchCommitter.DT_FILE
+                }
+            },
+            {
+                'not': {
+                    'exists': {
+                        'field': 'initial_project_id'
+                    }
+                }
 
-        for result in cursor:
-            yield dict(zip(fields,result))
+            }
+        ]
+        for item in elasticsearch.helpers.scan(self._escommitter._elastic,
+                                                index=DEFAULT_INDEX,
+                                                query={
+                                                    'query': {
+                                                        'filtered': {
+                                                            'filter': {
+                                                                'and': filter_list
+                                                            }
+                                                        }
+                                                    },
+                                                    'sort': [
+                                                        {
+                                                            'ctime': {
+                                                                'order': 'desc'
+                                                            }
+                                                        }
+                                                    ]
+                                                }):
+            doc = item['_source']
+            doc['id'] = item['_id']
+            yield self._fix_dates(doc)
 
     #since should be a datetime object
     def files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
-        sql_params = []
+        filter_list = [
+            {
+                'match': {
+                    '_type': ElasticSearchCommitter.DT_FILE
+                }
+            },
+            {
+                'match': {
+                    'deleted': False
+                }
+            }
+        ]
 
-        if since:
-            try:
-                sql_params.append("lastseen > '"+since.isoformat('T')+"'")
-            except Exception as e:
-                print "Warning: importer_db::files: %s. 'since' argument is ignored." % e
+        if since is not None:
+            filter_list.append({
+                'range': {
+                    'lastseen': {
+                        'gte': since
+                    }
+                }
+            })
 
-        if pathspec:
-            #try:
-                sql_params.append("filepath like '%{path}%'".format(path=pathspec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+        if pathspec is not None:
+            filter_list.append({
+                'prefix': {
+                    'filepath': pathspec
+                }
+            })
 
-        if namespec:
-            #try:
-                sql_params.append("filename like '%{name}%'".format(name=namespec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+        if namespec is not None:
+            filter_list.append({
+                'wildcard': {
+                    'filename': "*"+namespec+"*"
+                }
+            })
 
-        sqlcmd="select * from files "
-        if len(sql_params) >0:
-            sqlcmd+="where "
-            for arg in sql_params:
-                sqlcmd+=arg+" "
-
-        sqlcmd+="order by ctime "
         if reverse_order:
-            sqlcmd+="desc"
+            sort_dir = 'desc'
         else:
-            sqlcmd+="asc"
+            sort_dir = 'asc'
 
-        cursor=self.conn.cursor()
-        cursor.execute(sqlcmd)
-        #http://stackoverflow.com/questions/5010042/mysql-get-column-name-or-alias-from-query
-        fields = map(lambda x: x[0], cursor.description)
+        for item in elasticsearch.helpers.scan(self._escommitter._elastic,
+                                                index=DEFAULT_INDEX,
+                                                query={
+                                                    'query': {
+                                                        'filtered': {
+                                                            'filter': {
+                                                                'and': filter_list
+                                                            }
+                                                        }
+                                                    },
+                                                    'sort': [
+                                                        {
+                                                            'ctime': {
+                                                                'order': sort_dir
+                                                            }
+                                                        }
+                                                    ]
+                                                }):
+            doc = item['_source']
+            doc['id'] = item['_id']
+            yield self._fix_dates(doc)
 
-        for row in cursor:
-            entity = dict(zip(fields, row))  #should return a dict with the column names as keys and data as values
-            yield entity
+    def _fix_dates(self,doc):
+        """
+        fixes the strings returned as dates into datetimes
+        :param doc:
+        :return:
+        """
+        import dateutil.parser
+        rtn = doc
+        for k,v in doc.items():
+            try:
+                d = dateutil.parser.parse(v)
+                if d is not None:
+                    rtn[k] = d
+                #print "converted {1} into {2}"
+            except StandardError as e:
+                pass #print "{0} ({1}): {2}".format(v,k,e) 
+        return rtn
 
     def update_file_ignore(self,fileid,ignflag):
-        cursor=self.conn.cursor()
-
-        if not isinstance(fileid,int):
-            raise ArgumentError("fileid argument must be an integer")
-        if ignflag:
-            cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
-        else:
-            cursor.execute("update files set ignore=FALSE where id=%d" % fileid)
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_data={'ignore': ignflag},doc_id=fileid)
 
     def update_file_vidispine_id(self,fileid,vsid):
-        cursor=self.conn.cursor()
-
-        if not isinstance(fileid,int):
-            raise ArgumentError("fileid argument must be an integer")
+        # cursor=self.conn.cursor()
+        #
+        # if not isinstance(fileid,int):
+        #     raise ArgumentError("fileid argument must be an integer")
 
         if not re.match(u'^\w{2}-\d+',vsid):
             msg="Vidispine id {0} does not look like an integer".format(vsid)
             raise ArgumentError(msg)
 
-        cursor.execute("update files set imported_id='{0}',imported_at=now() where id={1}".format(vsid,fileid))
+        # cursor.execute("update files set imported_id='{0}',imported_at=now() where id={1}".format(vsid,fileid))
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_data={'imported_id': vsid},doc_id=fileid)
 
     def upsert_prelude_project(self,path=None,filename=None,uuid=None,version=None,nclips=None):
-        cursor=self.conn.cursor()
-        self.conn.commit()
+        doc = {
+            'filepath': path,
+            'filename': filename,
+            'uuid': uuid,
+            'version': version,
+            'clips': nclips,
+            'lastseen': datetime.now()
+        }
+        doc_id = self.make_doc_id(doc)
 
-        #if uuid is None:
-        #    raise DataError("You need to pass a valid uuid")
-
-        try:
-            sqlcmd = """insert into prelude_projects (filepath,filename,uuid,version,clips,lastseen)
-                        values (%s,%s,%s,%s,%s,now()) returning id"""
-            cursor.execute(sqlcmd,(path,filename,uuid,version,nclips))
-        except psycopg2.IntegrityError as e: #if we violate unique keys, try to update on filename
-            self.conn.rollback()
-            try:
-                sqlcmd = """update prelude_projects set filepath=%s, filename=%s, uuid=%s, version=%s, clips=%s, lastseen=now()
-                            where filepath=%s and filename=%s returning id"""
-                cursor.execute(sqlcmd,(path,filename,uuid,version,nclips,path,filename))
-            except psycopg2.IntegrityError as e: #if that causes a violation, try to update on uuid
-                self.conn.rollback()
-                sqlcmd = """update prelude_projects set filepath=%s, filename=%s, uuid=%s, version=%s, clips=%s, lastseen=now()
-                            where uuid=%s returning id"""
-                cursor.execute(sqlcmd,(path,filename,uuid,version,nclips,uuid))
-
-        self.conn.commit()
-        result=cursor.fetchone()
-        return result[0]    #return id of inserted row
+        self._escommitter.add(doc_type=ElasticSearchCommitter.DT_PROJECT,doc_data=doc,doc_id=doc_id)
+        return doc_id
 
     def update_project_nclips(self,nclips, projectid=None):
-        cursor=self.conn.cursor()
-        cursor.execute("update prelude_projects set clips=%s where id=%s",(nclips,projectid))
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_PROJECT,
+                                 doc_data={
+                                     'clips': nclips
+                                 },
+                                 doc_id=projectid)
 
     def upsert_prelude_clip(self,project_ref=None,asset_name=None,asset_relink_skipped=None,asset_type=None,
             uuid=None,created_date=None,drop_frame=None,duration=None,file_path=None,frame_rate=None,
             import_date=None,parent_uuid=None,start_time=None):
-        cursor=self.conn.cursor()
 
-        self.conn.commit()
+        doc = locals() #should get a dict of the arguments
+        del doc['self']
 
-        try:
-            sqlcmd="""insert into prelude_clips (asset_name,asset_relink_skipped,asset_type,class_id,created_date,drop_frame,
-            duration_text,file_path,frame_rate,import_date,project,start_time,parent_id)
-            values
-            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id
-            """
+        if uuid is not None:
+            doc_id = uuid
+        else:
+            doc_id=project_ref + asset_name
 
-            cursor.execute(sqlcmd, (asset_name,asset_relink_skipped,asset_type,uuid,created_date,drop_frame,duration,file_path,
-            frame_rate,import_date,parent_uuid,start_time,project_ref))
-
-        except psycopg2.IntegrityError as e:
-            #if e.startswith('duplicate key'):
-            self.conn.rollback()
-            sqlcmd = """update prelude_clips set
-            asset_name=%s,
-            asset_relink_skipped=%s,
-            asset_type=%s,
-            created_date=%s,
-            drop_frame=%s,
-            duration_text=%s,
-            frame_rate=%s,
-            import_date=%s,
-            project=%s,
-            start_time=%s,
-            parent_id=%s
-            where class_id=%s and file_path=%s returning id"""
-
-            cursor.execute(sqlcmd,(asset_name,asset_relink_skipped,asset_type,created_date,drop_frame,duration,
-            frame_rate,import_date,parent_uuid,start_time,project_ref,uuid,file_path))
-
-        self.conn.commit()
-        result=cursor.fetchone()
-        return result[0]
+        self._escommitter.add(doc_type=ElasticSearchCommitter.DT_PRELUDE,
+                              doc_data=doc,
+                              doc_id=doc_id)
+        return doc_id
 
     def get_prelude_data(self,preludeid):
         if preludeid is None:
             return None
-
-        if not isinstance(preludeid,int):
-            raise ArgumentError("Prelude ID must be an integer that identifies the record in the asset_folrder_importer database")
-
-        cursor=self.conn.cursor()
-        cursor.execute("select * from prelude_clips where id={0}".format(preludeid))
-
-        fields = map(lambda x: x[0], cursor.description)
-
-        row=cursor.fetchone()
-        if row is None:
-            return None
-
-        return dict(zip(fields,row))
+        data = self._escommitter._elastic.get(index=DEFAULT_INDEX,doc_type=ElasticSearchCommitter.DT_PRELUDE,id=preludeid)
+        return data['_source']
 
     def get_prelude_project(self,projid):
-        if not isinstance(projid,int):
-            raise ArgumentError("Project ID must be an integer that identifies the record in the asset_folrder_importer database")
-
-        cursor=self.conn.cursor()
-        cursor.execute("select * from prelude_projects where id={0}".format(projid))
-
-        fields = map(lambda x: x[0], cursor.description)
-
-        row=cursor.fetchone()
-
-        return dict(zip(fields,row))
+        data = self._escommitter._elastic.get(index=DEFAULT_INDEX,doc_type=ElasticSearchCommitter.DT_PROJECT,id=projid)
+        return data['_source']
 
     def update_prelude_clip_fileref(self,preludeid,fileid):
-        cursor=self.conn.cursor()
-
-        print "updating prelude clip %s with id %s" % (preludeid,fileid)
-        cursor.execute("update prelude_clips set file_reference=%s where id=%s", (fileid,preludeid))
-        cursor.execute("update files set prelude_ref=%s where id=%s", (preludeid,fileid))
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_FILE,doc_data={'prelude_ref': preludeid},doc_id=fileid)
+        self._escommitter.update(doc_type=ElasticSearchCommitter.DT_PRELUDE,doc_data={'file_reference': fileid},doc_id=preludeid)
 
     def add_sidecar_ref(self,fileid,sidecar_path):
         (sidecar_dir,sidecar_name)=os.path.split(sidecar_path)
 
-        self.conn.commit()
-        try:
-            cursor=self.conn.cursor()
-            cursor.execute("insert into sidecar_files (file_ref,sidecar_path,sidecar_name) values (%s,%s,%s)", (fileid,sidecar_dir,sidecar_name))
-        except:
-            print "Unable to update sidecar table"
-            self.conn.rollback()
-            raise StandardError("Debug: sidecar update failed")
+        self._escommitter.add(doc_type=ElasticSearchCommitter.DT_SIDECAR,
+                              doc_data={
+                                  'file_ref': fileid,
+                                  'sidecar_dir': sidecar_dir,
+                                  'sidecar_name': sidecar_name
+                              })
+
+
+if __name__ == '__main__':
+    from pprint import pprint
+    d = importer_db('testing',elastichosts='dc1-mmlb-01.dc1.gnm.int:9200')
+    data=d.fileRecord('/srv/Proxies2/DevSystem/Assets/Multimedia_Culture_and_Sport/Andrew_Collins_Telly_Addict/mona_mahmood_March_2_2015Andrew_Collins_Telly_Addict/9 March Episode/Untitled/BPAV/CLPR/559_1409_01/559_1409_01.MP4')
+    pprint(data)
