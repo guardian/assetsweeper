@@ -72,10 +72,12 @@ class ImporterThread(threading.Thread):
                 break
 
             try:
-                (a,b,c) = self.attempt_file_import(fileref,filepath,rootpath)
-                self.found += a
-                self.withItems += b
-                self.imported += c
+                result = self.attempt_file_import(fileref,filepath,rootpath)
+                if isinstance(result,tuple) or isinstance(result,list):
+                    (a,b,c) = result
+                    self.found += a
+                    self.withItems += b
+                    self.imported += c
 
             except VSNotFound as e:
                 msgstring = "WARNING: File %s was not found: %s" % (filepath,e.message)
