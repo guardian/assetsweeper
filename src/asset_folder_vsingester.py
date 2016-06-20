@@ -49,6 +49,14 @@ class NotFoundError(StandardError):
     pass
 
 
+class XMLBuildError(StandardError):
+    pass
+
+
+class FileOnIgnoreList(StandardError):
+    pass
+
+
 class ImporterThread(threading.Thread):
     def __init__(self,q,storageref,cfg):
         super(ImporterThread,self).__init__()
@@ -62,6 +70,7 @@ class ImporterThread(threading.Thread):
         self.withItems = 0
         self.imported = 0
         self.cfg = cfg
+        self.ignored = 0
 
     def run(self):
         logging.info("In importer_thread::run...")
@@ -90,12 +99,13 @@ class ImporterThread(threading.Thread):
                 logging.warning(msgstring)
                 logging.warning(traceback.format_exc())
                 db.insert_sysparam("warning",msgstring)
+            except FileOnIgnoreList:
+                self.ignored+=1
             except StandardError as e:
                 msgstring = "WARNING: error {0} occurred: {1}".format(e.__class__,e)
                 logging.warning(msgstring)
                 logging.warning(traceback.format_exc())
                 db.insert_sysparam("warning",msgstring)
-        pass
 
     def setPermissions(self,fileref):
         file = os.path.join(fileref['filepath'],fileref['filename'])
@@ -122,17 +132,10 @@ class ImporterThread(threading.Thread):
             if filepath.upper().endswith(".XMP"):
                 logging.info("File is an XMP sidecar, will not attempt to import as an item")
                 db.update_file_ignore(fileref['id'], True)
-                return
+                raise FileOnIgnoreList(filepath)
 
             try:
                 logging.info("Attempting to import...")
-                #metadata = VSMetadata()
-                ##metadata.setPrimaryGroup('asset')
-                #metadata.addValue('title',os.path.basename(filepath))
-                #metadata.addValue('gnm_asset_category','Rushes')
-
-                #print os.sep
-                #pprint(fileref['filepath'].split(os.sep))
                 try:
                     fileref['likely_project']=fileref['filepath'].split(os.sep)[7]
                 except Exception:
@@ -236,16 +239,10 @@ class ImporterThread(threading.Thread):
                     logging.error("outputting failed XML to {0}".format(fn))
                     with open(fn) as f:
                         f.write(mdXML)
-                    return
+                    raise XMLBuildError("xmllint on {0} failed: {1}".format(fn,stderr))
 
                 mdXML=stdout
-                #pprint(fileref)
-                #pprint(preludeclip)
-                #pprint(preludeproject)
 
-                #logging.info(mdXML)
-
-                #raise StandardError("Testing")
                 import_tags = []
                 if fileref['mime_type'] and fileref['mime_type'].startswith("video/"):
                     import_tags = ['lowres']
@@ -334,14 +331,12 @@ class ImporterThread(threading.Thread):
                 print msgstring
                 db.insert_sysparam("warning",msgstring)
 
-        #vsfile.dump()
         db.commit()
         found+=1
 
         return (found,withItems,imported)
 
-        #raise StandardError("Testing")
-        #break
+
 def potentialSidecarFilenames(filename,isxdcam=False):
     for x in potentialSidecarExtensions:
         potentialFile = re.sub(u'\.[^\.]+',x,filename)
