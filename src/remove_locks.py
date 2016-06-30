@@ -7,7 +7,7 @@ conn = psycopg2.connect(database="asset_folder_importer",user=sys.argv[1],passwo
 
 cursor=conn.cursor()
 
-cursor.execute("select pid from system where key='run_end' and pid=(select pid from system where key='script_version' and value like 'asset_folder_vsingester%' order by timestamp desc limit 1)")
+cursor.execute("select * from system where key='run_end' and pid=(select pid from system where key='script_version' and value like 'asset_folder_vsingester%' order by timestamp desc limit 1)")
 
 for record in cursor:
-    print record
+    print record[0]
