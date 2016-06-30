@@ -12,7 +12,7 @@ cursor.execute("select * from system where key='run_end' and pid=(select pid fro
 for record in cursor:
     print record[0]
 
-if record[3] != "":
+if record[3] != None:
     print "Unlocked"
 
 else:
