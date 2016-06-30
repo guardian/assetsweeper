@@ -24,3 +24,4 @@ else:
     #2016-06-30 15:00:01.908556+01
 
     cursor.execute("update system set timestamp='"+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")+"' where id='"+str(record[0])+"'")
+    conn.commit()
