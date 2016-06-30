@@ -9,5 +9,5 @@ cursor=conn.cursor()
 
 cursor.execute("select * from system where pid=(select pid from system where key='script_version' and value like 'asset_folder_vsingester%' order by timestamp desc limit 1)")
 
-
-
+for record in cursor:
+    print record
