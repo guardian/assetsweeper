@@ -1,6 +1,6 @@
 import psycopg2
 import sys
-import time
+import datetime
 
 print "Usage: remove_locks.py user password host port"
 
@@ -19,8 +19,8 @@ if record[3] != None:
 else:
 
     print "Locked"
-    print time.strftime("%Y-%m-%d %H:%M:%S.%f+01", time.gmtime())
+    print datetime.datetime.now().strftime("%H:%M:%S.%f")
 
     #2016-06-30 15:00:01.908556+01
 
-    cursor.execute("update system set timestamp='"+time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())+"' where id="+str(record[0])+"")
+    cursor.execute("update system set timestamp='"+datetime.datetime.now().strftime("%H:%M:%S.%f")+"' where id="+str(record[0])+"")
