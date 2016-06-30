@@ -1,5 +1,6 @@
 import psycopg2
 import sys
+import time
 
 print "Usage: remove_locks.py user password host port"
 
@@ -18,3 +19,5 @@ if record[3] != None:
 else:
 
     print "Locked"
+
+    cursor.execute("update system set timestamp='{0}' where id='{1}'").format(time.mktime(),record[0])
