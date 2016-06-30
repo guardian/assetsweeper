@@ -19,5 +19,5 @@ if record[3] != None:
 else:
 
     print "Locked"
-
+    print time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
     cursor.execute("update system set timestamp='"+time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())+"' where id="+str(record[0])+"")
