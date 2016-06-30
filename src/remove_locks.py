@@ -19,8 +19,8 @@ if record[3] != None:
 else:
 
     print "Locked"
-    print datetime.datetime.now().strftime("%H:%M:%S.%f")
+    print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")
 
     #2016-06-30 15:00:01.908556+01
 
-    cursor.execute("update system set timestamp='"+datetime.datetime.now().strftime("%H:%M:%S.%f")+"' where id="+str(record[0])+"")
+    cursor.execute("update system set timestamp='"+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")+"' where id="+str(record[0])+"")
