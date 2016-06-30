@@ -19,7 +19,7 @@ if record[3] != None:
 else:
 
     print "Locked"
-    print time.strftime("%Y-%m-%b %H:%M:%S.000%f+01", time.gmtime())
+    print time.strftime("%Y-%m-%d %H:%M:%S.%f+01", time.gmtime())
 
     #2016-06-30 15:00:01.908556+01
 
