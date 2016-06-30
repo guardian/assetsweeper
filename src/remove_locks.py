@@ -20,4 +20,4 @@ else:
 
     print "Locked"
 
-    cursor.execute("update system set timestamp='test' where id="+str(record[0])+"")
+    cursor.execute("update system set timestamp='"+time.mktime()+"' where id="+str(record[0])+"")
