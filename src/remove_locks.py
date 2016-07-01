@@ -8,20 +8,27 @@ conn = psycopg2.connect(database="asset_folder_importer",user=sys.argv[1],passwo
 
 cursor=conn.cursor()
 
-cursor.execute("select * from system where key='run_end' and pid=(select pid from system where key='script_version' and value like 'asset_folder_vsingester%' order by timestamp desc limit 1)")
+cursor.execute("select pid,timestamp from system where key='script_version' and value like 'asset_folder_vsingester%' order by timestamp desc limit 1")
+if cursor.rowcount==0:
+    print "No runs found for asset_folder_ingester!"
+    exit(1)
 
-for record in cursor:
-    print record[0]
+row=cursor.fetchone()
+pid = int(row[0])
 
-if record[3] != None:
-    print "Unlocked"
+print "Last run PID was {0} at {1}".format(pid,row[1])
 
-else:
+cursor.execute("select id,key,value,timestamp,pid from system where key='run_end' and pid=?", (pid,))
 
+if cursor.rowcount==0:
     print "Locked"
     print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")
 
     #2016-06-30 15:00:01.908556+01
 
-    cursor.execute("update system set timestamp='"+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")+"' where id='"+str(record[0])+"'")
+    cursor.execute("insert into system (key,value,pid) values ('run_end',?,?)", (datetime.datetime.now(),str(pid),)
+                   )
     conn.commit()
+
+else:
+    print "Not locked"
