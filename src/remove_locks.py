@@ -1,15 +1,10 @@
 import psycopg2
-import sys
 import datetime
 from asset_folder_importer.config import configfile
 
 cfg=configfile("/etc/asset_folder_importer.cfg")
 
-print "Usage: remove_locks.py user password host port"
-
 conn = psycopg2.connect(database="asset_folder_importer",user=cfg.value('database_user'),password=cfg.value('database_password'),host=cfg.value('database_host'),port=cfg.value('database_port'))
-
-#conn = psycopg2.connect(database="asset_folder_importer",user=sys.argv[1],password=sys.argv[2],host=sys.argv[3],port=sys.argv[4])
 
 cursor=conn.cursor()
 
