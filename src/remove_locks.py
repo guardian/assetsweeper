@@ -18,7 +18,7 @@ pid = int(row[0])
 
 print "Last run PID was {0} at {1}".format(pid,row[1])
 
-cursor.execute("select id,key,value,timestamp,pid from system where key='run_end' and pid=?", (pid,))
+cursor.execute("select id,key,value,timestamp,pid from system where key='run_end' and pid=%s", (pid,))
 
 if cursor.rowcount==0:
     print "Locked"
@@ -26,7 +26,7 @@ if cursor.rowcount==0:
 
     #2016-06-30 15:00:01.908556+01
 
-    cursor.execute("insert into system (key,value,pid) values ('run_end',?,?)", (datetime.datetime.now(),str(pid),)
+    cursor.execute("insert into system (key,value,pid) values ('run_end',%s,%s)", (datetime.datetime.now(),str(pid),)
                    )
     conn.commit()
 
