@@ -22,9 +22,6 @@ cursor.execute("select id,key,value,timestamp,pid from system where key='run_end
 
 if cursor.rowcount==0:
     print "Locked"
-    print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f+01")
-
-    #2016-06-30 15:00:01.908556+01
 
     cursor.execute("insert into system (key,value,pid) values ('run_end',%s,%s)", (datetime.datetime.now(),str(pid),)
                    )
