@@ -46,6 +46,8 @@ def find_files(cfg):
     #mark a file as to be ignored, if any of these regexes match. This will prevent vsingester from importing it.
     pathShouldIgnore = [
         'Adobe Premiere Pro Preview Files',
+        'System Volume Information',
+        '\.TMP',
         '\/\.',  #should ignore a literal dot, but only if it follows a /
         '\.pk$',
         '\.PFL$',
