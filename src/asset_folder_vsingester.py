@@ -106,7 +106,7 @@ class ImporterThread(threading.Thread):
                 logging.warning(msgstring)
                 logging.warning(traceback.format_exc())
                 db.insert_sysparam("warning",msgstring)
-    logging.info("importer_thread completed")
+        logging.info("importer_thread completed")
 
     def setPermissions(self,fileref):
         file = os.path.join(fileref['filepath'],fileref['filename'])
