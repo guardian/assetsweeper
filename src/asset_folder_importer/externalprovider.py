@@ -60,10 +60,11 @@ class VSMetadataList(dict):
 
 
 class ExternalProviderList(object):
-    def __init__(self,providerlist):
+    def __init__(self,providerlist,raven_client=None):
         import yaml
         import logging
 
+        self._raven_client = raven_client
         self.filename = providerlist
         f=open(providerlist) #raises exception if file can't be opened
         self._data = yaml.load(f.read())
@@ -132,10 +133,14 @@ class ExternalProviderList(object):
                 match_data = expr.search(filename)
                 if match_data:
                     provider = self.get_provider(provider_info['module']) #raises if it can't be found
-                    data = provider.lookup(filepath, filename, match_data)
-                    #if data is not None:
-                    #    self._sanitise(data)
-                    return VSMetadataList(data)
+                    try:
+                        data = provider.lookup(filepath, filename, match_data)
+                        return VSMetadataList(data)
+                    except Exception as e: #if the provider raises any exception, log it as a warning and continue
+                        if self._raven_client is not None:
+                            self._raven_client.captureException()
+                        self.logger.error("Unable to lookup metadata: {0}".format(str(e)))
+                        #continue the loop in case another provider can handle.
 
         self.logger.warning("No metadata provider matches filename {0}".format(filename))
         return None

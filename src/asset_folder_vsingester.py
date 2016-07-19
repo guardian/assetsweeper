@@ -24,7 +24,7 @@ import re
 import time
 import logging
 import threading
-from Queue import Queue
+from Queue import Queue, Empty
 from copy import deepcopy
 import asset_folder_importer.externalprovider as externalprovider
 from subprocess import Popen,PIPE
@@ -75,19 +75,23 @@ class ImporterThread(threading.Thread):
     def run(self):
         logging.info("In importer_thread::run...")
         while True:
-            (fileref, filepath, rootpath) = self.queue.get(True,timeout=60)  #wait until a queue item is available or time out after 60s
-            if fileref is None:
-                logging.info("Received null fileref, so teminating")
-                break
-
             try:
+                (fileref, filepath, rootpath) = self.queue.get(True,timeout=60)  #wait until a queue item is available or time out after 60s, raising Empty
+                if fileref is None:
+                    logging.info("Received null fileref, so teminating")
+                    break
+
                 result = self.attempt_file_import(fileref,filepath,rootpath)
                 if isinstance(result,tuple) or isinstance(result,list):
                     (a,b,c) = result
                     self.found += a
                     self.withItems += b
                     self.imported += c
-
+            except Empty:
+                msgstring = "WARNING: importer_thread timed out waiting for more items"
+                logging.warning(msgstring)
+                logging.warning(traceback.format_exc())
+                db.insert_sysparam("warning",msgstring)
             except VSNotFound as e:
                 msgstring = "WARNING: File %s was not found: %s" % (filepath,e.message)
                 logging.warning(msgstring)
