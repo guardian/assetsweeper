@@ -213,7 +213,10 @@ class ImporterThread(threading.Thread):
 
                     l = externalprovider.ExternalProviderList(providers_config_file)
                     provider_result = l.try_file(os.path.dirname(filepath),os.path.basename(filepath))
-                    externaldata = provider_result.to_vs_xml()
+                    if provider_result is not None:
+                        externaldata = provider_result.to_vs_xml()
+                    else:
+                        externaldata = ""
                 except LookupError as e:
                     logging.error(unicode(e))
                     externaldata = ""
