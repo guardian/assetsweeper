@@ -462,6 +462,15 @@ class importer_db:
             return dict(zip(fields,result))
         return None
 
+    def get_vidispine_id(self, path):
+        cursor = self.conn.cursor()
+
+        cursor.execute("select imported_id from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
     def fileId(self,path):
         cursor=self.conn.cursor()
 

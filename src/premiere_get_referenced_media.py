@@ -262,72 +262,79 @@ def process_premiere_project(filepath, db=None, cfg=None):
     lg.debug("looking for referenced media....")
     for filepath in pp.getReferencedMedia():
         total_files += 1
+        server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
 
         lg.debug("Got filepath %s" % filepath)
-        fileid = db.fileId(re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8'))
+        fileid = db.fileId(server_path)
         if fileid:
             try:
                 db.link_file_to_edit_project(fileid, project_id)
                 lg.debug("Linked file %s with id %s to project %s" % (filepath, fileid, project_id))
             except AlreadyLinkedError:
                 lg.info("File %s with id %s is already linked to project %s" % (filepath, fileid, project_id))
+                continue
         else:
             not_in_db += 1
             lg.warning("File %s could not be found in the database" % filepath)
-
+            continue
         n = 0
         found = False
-        for (numHits, item) in vsproject.items(fileName=filepath):
-            n += 1
-            lg.debug("On result %d of %d" % (n, numHits))
-            if numHits == 1:
-                lg.info("File %s is already associated with Vidispine project %s" % (filepath, collection_vsid))
-                found = True
-                break
-            shape = item.get_shape('original')
+        vsid = db.get_vidispine_id(server_path)
+        item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+        item.name = vsid
+        vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
 
-            lg.info("Got more than one result for filename %s in collection %s, so need to check file paths" % (
-            os.path.basename(filepath), vsproject.name))
-
-            for u in shape.fileURIs():
-                lg.debug("Found URI %s for file" % u)
-                path = re.sub(u'^[^:]+://', '', u)
-                path = urllib.url2pathname(path)
-                lg.debug("Found path %s for file" % path)
-                if partial_path_match(path, filepath, 3):
-                    found = True
-                    break
-            if found:
-                lg.info("File %s is already associated with Vidispine project %s", (filepath, collection_vsid))
-                break
-        if not found:
-            #item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-            try:
-                filepath = re.sub(u'^//', '',
-                                  filepath)  #if we have been left with a bit of URL on the front of the path, remove it before the next call
-                storage = find_vsstorage_for(os.path.dirname(filepath), vs_pathmap, 3)
-                if storage is None:
-                    pprint(vs_pathmap)
-                    raise StandardError("Unable to find a storage associated with path %s" % os.path.dirname(filepath))
-                lg.info("Asset %s lives on storage %s", filepath, storage.name)
-                serverside_name = re.sub(u'/Volumes', '/srv', filepath)
-                #serverside_name = remove_path_chunks(filepath,2)
-                #This will raise VSNotFound if the file does not exist.
-                lg.debug("Looking for path %s on server" % serverside_name)
-                fileref = storage.fileForPath(serverside_name)
-                item = fileref.memberOfItem
-                if item is None:
-                    pprint(fileref.__dict__)
-                    lg.warn("File exists in Vidispine but has no item associated with it")
-                    raise VSNotFound()
-                lg.info("Adding item %s from filepath %s to collection %s", item.name, filepath, vsproject.name)
-                vsproject.addToCollection(item=item)
-            except VSNotFound as e:
-                no_vsitem += 1
-                lg.warn("File %s could not be found in Vidispine" % filepath)
-                lg.debug(str(e.__class__) + ": " + e.message)
-            except StandardError as e:
-                lg.warn(str(e.__class__) + ": " + e.message)
+        # for (numHits, item) in vsproject.items(fileName=filepath):
+        #     n += 1
+        #     lg.debug("On result %d of %d" % (n, numHits))
+        #     if numHits == 1:
+        #         lg.info("File %s is already associated with Vidispine project %s" % (filepath, collection_vsid))
+        #         found = True
+        #         break
+        #     shape = item.get_shape('original')
+        #
+        #     lg.info("Got more than one result for filename %s in collection %s, so need to check file paths" % (
+        #     os.path.basename(filepath), vsproject.name))
+        #
+        #     for u in shape.fileURIs():
+        #         lg.debug("Found URI %s for file" % u)
+        #         path = re.sub(u'^[^:]+://', '', u)
+        #         path = urllib.url2pathname(path)
+        #         lg.debug("Found path %s for file" % path)
+        #         if partial_path_match(path, filepath, 3):
+        #             found = True
+        #             break
+        #     if found:
+        #         lg.info("File %s is already associated with Vidispine project %s", (filepath, collection_vsid))
+        #         break
+        # if not found:
+        #     #item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+        #     try:
+        #         filepath = re.sub(u'^//', '',
+        #                           filepath)  #if we have been left with a bit of URL on the front of the path, remove it before the next call
+        #         storage = find_vsstorage_for(os.path.dirname(filepath), vs_pathmap, 3)
+        #         if storage is None:
+        #             pprint(vs_pathmap)
+        #             raise StandardError("Unable to find a storage associated with path %s" % os.path.dirname(filepath))
+        #         lg.info("Asset %s lives on storage %s", filepath, storage.name)
+        #         serverside_name = re.sub(u'/Volumes', '/srv', filepath)
+        #         #serverside_name = remove_path_chunks(filepath,2)
+        #         #This will raise VSNotFound if the file does not exist.
+        #         lg.debug("Looking for path %s on server" % serverside_name)
+        #         fileref = storage.fileForPath(serverside_name)
+        #         item = fileref.memberOfItem
+        #         if item is None:
+        #             pprint(fileref.__dict__)
+        #             lg.warn("File exists in Vidispine but has no item associated with it")
+        #             raise VSNotFound()
+        #         lg.info("Adding item %s from filepath %s to collection %s", item.name, filepath, vsproject.name)
+        #         vsproject.addToCollection(item=item)
+        #     except VSNotFound as e:
+        #         no_vsitem += 1
+        #         lg.warn("File %s could not be found in Vidispine" % filepath)
+        #         lg.debug(str(e.__class__) + ": " + e.message)
+        #     except StandardError as e:
+        #         lg.warn(str(e.__class__) + ": " + e.message)
 
     lg.info(
         "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (
