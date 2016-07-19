@@ -33,6 +33,7 @@ MAXTHREADS = 6
 #suid perl script so we don't need to run the whole shebang as root
 PERMISSIONSCRIPT = "/usr/local/scripts/asset_folder_importer/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
+XML_CHECK_TIMEOUT = 60  #wait up to 60s for XML validation
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -211,10 +212,11 @@ class ImporterThread(threading.Thread):
                         providers_config_file = '/etc/asset_folder_importer/footage_providers.yml'
 
                     l = externalprovider.ExternalProviderList(providers_config_file)
-                    externaldata = l.try_file(os.path.dirname(filepath),os.path.basename(filepath))
+                    provider_result = l.try_file(os.path.dirname(filepath),os.path.basename(filepath))
+                    externaldata = provider_result.to_vs_xml()
                 except LookupError as e:
                     logging.error(unicode(e))
-                    externaldata = None
+                    externaldata = ""
 
                 try:
                     mdXML = self.mdTemplate.render({'fileref': fileref,
@@ -222,7 +224,7 @@ class ImporterThread(threading.Thread):
                                                'preludeproject': preludeproject,
                                                'xdcamref': xdcamref,
                                                'cubaseref': cubaseref,
-                                               'externalmeta': externaldata.to_vs_xml()})
+                                               'externalmeta': externaldata})
                 except AttributeError as e:
                     if 'to_vs_xml' in str(e): #catch the case where we got no external metadata
                         mdXML = self.mdTemplate.render({'fileref': fileref,
@@ -237,9 +239,18 @@ class ImporterThread(threading.Thread):
                 #run the compiled data through xmllint.  This should ensure that the XML is OK before we send, and also that
                 #any pesky extender UTF-8 chars get escaped.
                 proc = Popen(['xmllint', '--format', '-'],stdin=PIPE,stdout=PIPE,stderr=PIPE)
-                (stdout,stderr) = proc.communicate(mdXML)
+
+                #look at http://stackoverflow.com/questions/1191374/using-module-subprocess-with-timeout
+                kill_proc = lambda p: p.kill()
+                t = threading.Timer(XML_CHECK_TIMEOUT,kill_proc,[proc])
+                t.start()
+                try:
+                    (stdout,stderr) = proc.communicate(mdXML)
+                finally:
+                    t.cancel()
+
                 if proc.returncode!=0:
-                    logging.error("xmllint failed: {0}".format(stderr))
+                    logging.error("xmllint failed with code {1}: {0}".format(stderr,proc.returncode))
                     fn = os.path.join(graveyard_folder,os.path.basename(filepath))
                     logging.error("outputting failed XML to {0}".format(fn))
                     with open(fn) as f:
