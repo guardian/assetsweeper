@@ -6,11 +6,11 @@ __scriptname__ = 'asset_folder_vsingester'
 
 #this also requires python-setuptools to be installed
 from jinja2 import Environment,PackageLoader
-from vidispine.vs_collection import VSCollection
-from vidispine.vs_job import VSJob,VSJobFailed
-from vidispine.vs_storage import VSStorage
-from vidispine.vidispine_api import VSBadRequest,VSNotFound, VSException, HTTPError
-from vidispine.vs_metadata import VSMetadata
+from gnmvidispine.vs_collection import VSCollection
+from gnmvidispine.vs_job import VSJob,VSJobFailed
+from gnmvidispine.vs_storage import VSStorage
+from gnmvidispine.vidispine_api import VSBadRequest,VSNotFound, VSException, HTTPError, VSConflict
+from gnmvidispine.vs_metadata import VSMetadata
 from asset_folder_importer.database import importer_db
 from asset_folder_importer.config import configfile
 from asset_folder_importer.xdcam_metadata import XDCAMImporter,InvalidDataError
@@ -127,8 +127,26 @@ class ImporterThread(threading.Thread):
         withItems = 0
         imported = 0
         found = 0
-
-        vsfile=self.st.fileForPath(filepath)
+        attempts = 0
+        max_attempts = 3
+        
+        vsfile = None
+        while True:
+            try:
+                vsfile=self.st.fileForPath(filepath)
+                break
+            except VSNotFound as e:
+                if attempts>max_attempts:
+                    logging.error("Unable to add file %s to Vidispine." % filepath)
+                    raise
+                logging.warning("File %s not found in Vidispine.  Attempting to update..." % filepath)
+                try:
+                    self.st.create_file_entity(filepath,createOnly=True)
+                    time.sleep(1) #sleep 1s to allow the file to be added
+                except VSConflict: #if the file was created in the meantime, don't worry about it, just retry the add
+                    pass
+                attempts +=1
+                
         if vsfile.memberOfItem is not None:
             logging.info("Found file %s in Vidispine at file id %s, item id %s" % (filepath,vsfile.name,vsfile.memberOfItem.name))
             db.update_file_vidispine_id(fileref['id'],vsfile.memberOfItem.name)
