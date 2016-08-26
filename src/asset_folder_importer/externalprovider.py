@@ -135,6 +135,8 @@ class ExternalProviderList(object):
                         provider=provider_name,
                         err=str(e),
                     ))
+                    continue
+                    
             for expr in provider_info['regex_cache']:
                 match_data = expr.search(filename)
                 if match_data:
