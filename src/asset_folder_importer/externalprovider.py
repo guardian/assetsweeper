@@ -120,6 +120,7 @@ class ExternalProviderList(object):
         :param filename: filename of the file on-disk
         :return: a dictionary of provided metadata, or None if no providers were found
         """
+        import re
         for provider_name, provider_info in self._data.items():
             if not 'match' in provider_info:
                 self.logger.warning("No match parameter in {0} block in yaml list {1}".format(provider_name,
@@ -127,8 +128,15 @@ class ExternalProviderList(object):
                 continue
 
             if not 'regex_cache' in provider_info:
-                provider_info['regex_cache'] = self._build_regex_cache(provider_info['match'])
-
+                try:
+                    provider_info['regex_cache'] = self._build_regex_cache(provider_info['match'])
+                except re.error as e:
+                    self.logger.error("One of the regex configurations for {provider} is not valid: {err}".format(
+                        provider=provider_name,
+                        err=str(e),
+                    ))
+                    continue
+                    
             for expr in provider_info['regex_cache']:
                 match_data = expr.search(filename)
                 if match_data:

@@ -398,23 +398,16 @@ class importer_db:
 
     def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
         cursor=self.conn.cursor()
-
         self.conn.commit()
-        #print "trace: upsert_file_record: %s/%s" %(filepath,filename)
-
-        #sqlcmd="select * from upsert_file('%s','%s')" % (filepath,filename)
-        #print "about to exec %s" %sqlcmd
-
-        #cursor.execute(sqlcmd)
+        safe_filepath = unicode(filepath, errors='ignore')
+        safe_filename = unicode(filename, errors='ignore')
         try:
-            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (filename,filepath))
+            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
         except psycopg2.IntegrityError as e:
-            #if e.startswith('duplicate key'):
             self.conn.rollback()
-            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (filename, filepath))
+            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (safe_filename, safe_filepath))
 
         result=cursor.fetchone()
-        #pprint(result)
         id=result[0]
         try:
             if result[1] == True:
@@ -427,13 +420,6 @@ class importer_db:
             at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
             ct="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_ctime)+" * INTERVAL '1 second')",
         )
-        #     size=statinfo.st_size,
-        #     oid=statinfo.st_uid,
-        #     gid=statinfo.st_gid,
-        #     mime=mimetype,
-        #     id=id
-        # )
-        #print "about to exec %s" % sqlcmd
         cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,id))
 
         if ignore is not None:
@@ -441,9 +427,7 @@ class importer_db:
                 ign=ignore,
                 id=id
             ))
-
         self.conn.commit()
-        #raise StandardError("Exiting after first iteration for testing")
 
     def fileRecord(self,path):
         cursor=self.conn.cursor()

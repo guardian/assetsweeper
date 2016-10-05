@@ -77,7 +77,6 @@ class PremiereSAXHandler(sax.ContentHandler):
             #pprint((name, attrs.__dict__))
             #print self.tag_tree[-1]
             pass
-        pass
 
     def endElement(self, name):
         #self.logger.debug("endElement for {0}".format(name))
@@ -86,13 +85,11 @@ class PremiereSAXHandler(sax.ContentHandler):
             self.media_references.append(self._buffer)
             self._buffer = ""
             self._in_media_ref = False
-        pass
 
     def characters(self, content):
         if self._in_media_ref:
             #self.logger.debug(content)
             self._buffer += content
-        pass
 
     def endDocument(self):
         is_preview = re.compile(r'\.PRV/')
@@ -119,10 +116,10 @@ class PremiereProject:
 
         tf = None
         if useTempFile:
-            lg.info("PremiereProject::load - requested to use temporary file")
+            lg.debug("PremiereProject::load - requested to use temporary file")
             tf = tempfile.NamedTemporaryFile(suffix="prproj",delete=False)
             tempname = tf.name
-            lg.info("PremiereProject::load - temporary file is %s" % tempname)
+            lg.debug("PremiereProject::load - temporary file is %s" % tempname)
             shutil.copy2(filename,tempname)
             filename = tempname
 
@@ -133,7 +130,7 @@ class PremiereProject:
             self._parser.parse(f)
             f.close()
         except IOError:  #if gzip doesn't want to read it, then try as a plain file...
-            lg.debug("Open with gzip failed, trying standard file")
+            lg.warning("Open with gzip failed, trying standard file")
             self.isCompressed = False
             f = open(filename, "rb")
             self._parser.parse(f)
@@ -152,7 +149,6 @@ class PremiereProject:
         if len(self._sax_handler.media_references) == 0:
             raise NoMediaError("Premiere project does not have any media file references")
         return self._sax_handler.media_references
-
 
 
 def id_from_filepath(filepath):
@@ -174,11 +170,7 @@ def do_partial_match(source_segments, target_segments, limit_len, start=0):
     if len(target_segments) > len(source_segments):
         n = len(source_segments)
         target_segments = target_segments[0:n]
-    #print "do_partial_match:"
-    #pprint(source_segments)
-    #pprint(target_segments)
-    #print "limit_len: %s" % limit_len
-
+        
     for n in range(start, limit_len):
         target_path = os.path.sep.join(target_segments[n:])
         source_path = os.path.sep.join(source_segments[n:])
@@ -190,9 +182,6 @@ def do_partial_match(source_segments, target_segments, limit_len, start=0):
 
 
 def find_vsstorage_for(filepath, vs_pathmap, limit_len):
-    # if not filepath.endswith('/'):
-    #     filepath += '/'
-
     pathsegments = filter(None, filepath.split(os.path.sep))  #filter out null values
 
     for key, value in vs_pathmap.items():
@@ -213,7 +202,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
     lg.info("Premiere project: %s" % filepath)
 
     collection_vsid = id_from_filepath(filepath)
-    lg.debug("Project's Vidispine ID: %s" % collection_vsid)
+    lg.info("Project's Vidispine ID: %s" % collection_vsid)
     vsproject = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
                              passwd=cfg.value('vs_password'))
     vsproject.setName(collection_vsid)  #we don't need the actual metadata so don't bother getting it.
@@ -228,6 +217,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
         lg.error(traceback.format_exc())
         print "Unable to read '%s': %s" % (filepath,e.message)
         traceback.print_exc()
+        raven_client.captureException()
         return (0,0,0)
 
     lg.debug("determining project details and updating database...")
@@ -242,12 +232,14 @@ def process_premiere_project(filepath, db=None, cfg=None):
         project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
         lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
         lg.error(traceback.format_exc())
+        raven_client.captureException()
         return (0,0,0)
     except KeyError as e:
         project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
         db.insert_sysparam("warning","Unable to read project file '{0}' - {1}".format(filepath, str(e)))
         lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
         lg.error(traceback.format_exc())
+        raven_client.captureException()
         return (0,0,0)
 
     except InvalidDataError as e:
@@ -281,70 +273,22 @@ def process_premiere_project(filepath, db=None, cfg=None):
         found = False
         vsid = db.get_vidispine_id(server_path)
         item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-        item.name = vsid
+        item.populate(vsid,specificFields=['gnm_asset_category'])
+        if item.get('gnm_asset_category').lower() == 'branding':
+            lg.info("File %s is branding, not adding to project" % (filepath, ))
+            continue
+        
+        if vsproject in item.get_parent_projects():
+            lg.info("File %s is already in project %s" % (filepath,vsproject.name))
+            continue
+        
         vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
-
-        # for (numHits, item) in vsproject.items(fileName=filepath):
-        #     n += 1
-        #     lg.debug("On result %d of %d" % (n, numHits))
-        #     if numHits == 1:
-        #         lg.info("File %s is already associated with Vidispine project %s" % (filepath, collection_vsid))
-        #         found = True
-        #         break
-        #     shape = item.get_shape('original')
-        #
-        #     lg.info("Got more than one result for filename %s in collection %s, so need to check file paths" % (
-        #     os.path.basename(filepath), vsproject.name))
-        #
-        #     for u in shape.fileURIs():
-        #         lg.debug("Found URI %s for file" % u)
-        #         path = re.sub(u'^[^:]+://', '', u)
-        #         path = urllib.url2pathname(path)
-        #         lg.debug("Found path %s for file" % path)
-        #         if partial_path_match(path, filepath, 3):
-        #             found = True
-        #             break
-        #     if found:
-        #         lg.info("File %s is already associated with Vidispine project %s", (filepath, collection_vsid))
-        #         break
-        # if not found:
-        #     #item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-        #     try:
-        #         filepath = re.sub(u'^//', '',
-        #                           filepath)  #if we have been left with a bit of URL on the front of the path, remove it before the next call
-        #         storage = find_vsstorage_for(os.path.dirname(filepath), vs_pathmap, 3)
-        #         if storage is None:
-        #             pprint(vs_pathmap)
-        #             raise StandardError("Unable to find a storage associated with path %s" % os.path.dirname(filepath))
-        #         lg.info("Asset %s lives on storage %s", filepath, storage.name)
-        #         serverside_name = re.sub(u'/Volumes', '/srv', filepath)
-        #         #serverside_name = remove_path_chunks(filepath,2)
-        #         #This will raise VSNotFound if the file does not exist.
-        #         lg.debug("Looking for path %s on server" % serverside_name)
-        #         fileref = storage.fileForPath(serverside_name)
-        #         item = fileref.memberOfItem
-        #         if item is None:
-        #             pprint(fileref.__dict__)
-        #             lg.warn("File exists in Vidispine but has no item associated with it")
-        #             raise VSNotFound()
-        #         lg.info("Adding item %s from filepath %s to collection %s", item.name, filepath, vsproject.name)
-        #         vsproject.addToCollection(item=item)
-        #     except VSNotFound as e:
-        #         no_vsitem += 1
-        #         lg.warn("File %s could not be found in Vidispine" % filepath)
-        #         lg.debug(str(e.__class__) + ": " + e.message)
-        #     except StandardError as e:
-        #         lg.warn(str(e.__class__) + ": " + e.message)
 
     lg.info(
         "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (
         total_files, no_vsitem, not_in_db))
     return (total_files, no_vsitem, not_in_db)
-    #raise StandardError("Testing")
 
-    #if vsproject.hasItem(fileName=filepath):
-    #    lg.info("File %s is already associated with Vidispine project %s", (filepath,collection_vsid))
-    #else:
 
 #START MAIN
 
@@ -355,17 +299,11 @@ parser.add_option("-f", "--force", dest="force", default=False,
                   help="run even if it appears that another get_referenced_media process is running, over-riding locks")
 parser.add_option("-n", "--not-incremental", dest="fullrun", default=False,
                   help="do not do an incremental run (default behaviour) but re-inspect every available project in the system")
-
-#parser.add_option("-l","--log-level", dest="loglevel", default="DEBUG",
-#                 help="DEBUG|INFO|WARN|ERROR - only log messages of the given severity. Default is to log all.")
-
 (options, args) = parser.parse_args()
 
 raven_client = raven.Client(dsn=RAVEN_DSN)
 
 #Step two. Read config
-#pprint(args)
-#pprint(options)
 
 if options.configfile:
     cfg = configfile(options.configfile)
