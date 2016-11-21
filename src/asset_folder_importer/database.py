@@ -71,7 +71,7 @@ class importer_db:
         cursor = self.conn.cursor()
         sqlcmd = """
         CREATE TABLE deleted_files (
-            id integer NOT NULL,
+            id bigint NOT NULL,
             filepath text NOT NULL,
             filename text NOT NULL,
             mtime timestamp with time zone,

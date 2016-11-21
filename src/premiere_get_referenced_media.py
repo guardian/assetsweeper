@@ -37,10 +37,8 @@ vs_pathmap = {}
 class InvalidDataError(StandardError):
     pass
 
-
 class NoMediaError(StandardError):
     pass
-
 
 class PremiereSAXHandler(sax.ContentHandler):
     def startDocument(self):
@@ -256,6 +254,13 @@ def process_premiere_project(filepath, db=None, cfg=None):
         total_files += 1
         server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
 
+        vsid = db.get_vidispine_id(server_path)
+        item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+        item.populate(vsid,specificFields=['gnm_asset_category'])
+        if item.get('gnm_asset_category').lower() == 'branding':
+            lg.info("File %s is branding, not adding to project" % (filepath, ))
+            continue
+            
         lg.debug("Got filepath %s" % filepath)
         fileid = db.fileId(server_path)
         if fileid:
@@ -271,14 +276,10 @@ def process_premiere_project(filepath, db=None, cfg=None):
             continue
         n = 0
         found = False
-        vsid = db.get_vidispine_id(server_path)
-        item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-        item.populate(vsid,specificFields=['gnm_asset_category'])
-        if item.get('gnm_asset_category').lower() == 'branding':
-            lg.info("File %s is branding, not adding to project" % (filepath, ))
-            continue
         
-        if vsproject in item.get_parent_projects():
+        #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
+        #in the parent collections list (cached on the item record) without lifting any more info out of VS
+        if vsproject.name in map(lambda x: x.name,item.get_parent_collections(shouldPopulate=False)):
             lg.info("File %s is already in project %s" % (filepath,vsproject.name))
             continue
         
@@ -288,7 +289,6 @@ def process_premiere_project(filepath, db=None, cfg=None):
         "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (
         total_files, no_vsitem, not_in_db))
     return (total_files, no_vsitem, not_in_db)
-
 
 #START MAIN
 

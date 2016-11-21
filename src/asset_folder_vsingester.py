@@ -29,7 +29,7 @@ from copy import deepcopy
 import asset_folder_importer.externalprovider as externalprovider
 from subprocess import Popen,PIPE
 
-MAXTHREADS = 6
+MAXTHREADS = 4
 #suid perl script so we don't need to run the whole shebang as root
 PERMISSIONSCRIPT = "/usr/local/scripts/asset_folder_importer/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
