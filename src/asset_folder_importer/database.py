@@ -245,8 +245,6 @@ class importer_db:
         return timestamp
 
     def mark_id_as_deleted(self, id):
-        if not isinstance(id,int): raise ValueError()
-
         sqlcmd = """
         insert into deleted_files
         (id,filepath,filename,mtime,ctime,atime,imported_id,imported_at,last_seen,size,owner,gid,prelude_ref,ignore,mime_type)
@@ -536,7 +534,7 @@ class importer_db:
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,int):
+        if not isinstance(fileid,long):
             raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
@@ -546,7 +544,7 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,int):
+        if not isinstance(fileid,long):
             raise ArgumentError("fileid argument must be an integer")
 
         if not re.match(u'^\w{2}-\d+',vsid):
