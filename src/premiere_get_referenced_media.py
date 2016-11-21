@@ -11,10 +11,10 @@ from asset_folder_importer.database import *
 from asset_folder_importer.config import *
 from asset_folder_importer.logginghandler import AssetImporterLoggingHandler
 from optparse import OptionParser
-from vidispine.vs_collection import VSCollection
-from vidispine.vs_item import VSItem
-from vidispine.vidispine_api import *
-from vidispine.vs_storage import VSStoragePathMap, VSStorage
+from gnmvidispine.vs_collection import VSCollection
+from gnmvidispine.vs_item import VSItem
+from gnmvidispine.vidispine_api import *
+from gnmvidispine.vs_storage import VSStoragePathMap, VSStorage
 import time
 import shutil
 import tempfile
@@ -189,6 +189,12 @@ def find_vsstorage_for(filepath, vs_pathmap, limit_len):
             return value
 
 
+def find_item_id_for_path(path):
+    storage = find_vsstorage_for(path, vs_pathmap,50)
+    fileref = storage.fileForPath(path)
+    return fileref.memberOfItem
+
+
 def remove_path_chunks(filepath, to_remove):
     pathsegments = filepath.split(os.path.sep)
     return os.path.sep.join(pathsegments[to_remove:])
@@ -255,6 +261,17 @@ def process_premiere_project(filepath, db=None, cfg=None):
         server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
 
         vsid = db.get_vidispine_id(server_path)
+        # this call will return None if the file is not from an asset folder, e.g. newswire
+        if vsid is None:
+            try:
+                vsid = find_item_id_for_path(server_path)
+                if vsid is None:
+                    lg.error("File {0} is found by Vidispine but has not been imported yet".format(server_path))
+                    continue
+            except VSNotFound:
+                lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
+                continue
+            
         item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
         item.populate(vsid,specificFields=['gnm_asset_category'])
         if item.get('gnm_asset_category').lower() == 'branding':
