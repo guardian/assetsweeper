@@ -25,7 +25,7 @@ import raven
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(name)s - %(levelname)s - %(message)s'
-main_log_level = logging.DEBUG
+main_log_level = logging.INFO
 logfile = "/var/log/plutoscripts/premiere_get_referenced_media.log"
 RAVEN_DSN = 'https://12f1b44035ff41769d830b3b7a74de74:782294aa890245c4b4685cd20bd2af64@sentry.multimedia.theguardian.com/15'
 #End configurable parameters
@@ -279,7 +279,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
         
         #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
         #in the parent collections list (cached on the item record) without lifting any more info out of VS
-        if vsproject.name in map(lambda x: x.name,item.get_parent_collections(shouldPopulate=False)):
+        if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
             lg.info("File %s is already in project %s" % (filepath,vsproject.name))
             continue
         
