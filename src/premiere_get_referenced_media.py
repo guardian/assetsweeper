@@ -270,6 +270,12 @@ def process_premiere_project(filepath, db=None, cfg=None):
                     continue
             except VSNotFound:
                 lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
+                if "Internet Downloads" in server_path:
+                    vsproject2 = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
+                    vsproject2.setName(collection_vsid)
+                    vsproject2.populate
+                    vsproject2.setMetadata({'portal_mf358749': server_path}, mode="add")
+
                 continue
             
         item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
