@@ -275,7 +275,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
                     vsproject2.setName(collection_vsid)
                     vsproject2.populate
                     #vsproject2.add_mdgroup("Project")
-                    vsproject2.set_metadata({'portal_mf358749': server_path}, group="Project", entitytype="item")
+                    vsproject2.set_metadata({'portal_mf358749': server_path}, entitytype="item")
 
                 continue
             
