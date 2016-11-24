@@ -274,7 +274,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
                     vsproject2 = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
                     vsproject2.setName(collection_vsid)
                     vsproject2.populate
-                    vsproject2.add_mdgroup("Project")
+                    #vsproject2.add_mdgroup("Project")
                     vsproject2.setmetadata({'portal_mf358749': server_path}, group="Project", entitytype="item")
 
                 continue
