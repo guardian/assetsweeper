@@ -275,7 +275,7 @@ def process_premiere_project(filepath, db=None, cfg=None):
                     vsproject2.setName(collection_vsid)
                     vsproject2.populate
                     #vsproject2.add_mdgroup("Project")
-                    vsproject2.set_metadata({'gnm_project_invalid_media_paths': server_path}, entitytype="item", mode="add")
+                    vsproject2.set_metadata({'gnm_project_invalid_media_paths': server_path}, mode="add")
 
                 continue
             
