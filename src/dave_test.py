@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 intvar = 1 + 1
 
 print intvar
