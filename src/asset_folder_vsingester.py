@@ -59,12 +59,13 @@ class FileOnIgnoreList(StandardError):
 
 
 class ImporterThread(threading.Thread):
-    def __init__(self,q,storageref,cfg):
+    def __init__(self,q,storageid,cfg):
         super(ImporterThread,self).__init__()
         self.templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
         self.mdTemplate = self.templateEnv.get_template('vsasset.xml')
         self.queue = q
-        self.st = deepcopy(storageref)  #vidispine classes probably aren't threadsafe
+        self.st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+        self.st.populate(storageid)
         #nor is the database interface
         self.db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
         self.found = 0
@@ -78,6 +79,7 @@ class ImporterThread(threading.Thread):
         while True:
             try:
                 (fileref, filepath, rootpath) = self.queue.get(True,timeout=60)  #wait until a queue item is available or time out after 60s, raising Empty
+
                 if fileref is None:
                     logging.info("Received null fileref, so teminating")
                     break
@@ -129,7 +131,7 @@ class ImporterThread(threading.Thread):
         found = 0
         attempts = 0
         max_attempts = 3
-        
+
         vsfile = None
         while True:
             try:
@@ -443,14 +445,11 @@ def innerMainFunc(cfg,db,limit):
     threads = []
     input_queue = Queue()
     for i in range(0,MAXTHREADS):
-        t = ImporterThread(input_queue,st,cfg)
+        t = ImporterThread(input_queue,storageid,cfg)
         t.start()
         threads.append(t)
 
     for fileref in db.filesForVSID(None):
-        #print "Got file ref:"
-        #for k,v in fileref.items():
-            #print "\t%s: %s" % (k,v)
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
@@ -462,9 +461,7 @@ def innerMainFunc(cfg,db,limit):
             filepath = re.sub(u'^{0}'.format(rootpath),'',filepath)
 
             n += 1
-            #print "Looking up %s in Vidispine..." %filepath
 
-            #(a,b,c) = attempt_file_import(fileref,filepath,st,mdTemplate)
             input_queue.put([fileref,filepath,rootpath])
             #found += a
             #withItems += b

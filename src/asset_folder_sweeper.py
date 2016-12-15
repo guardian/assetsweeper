@@ -89,6 +89,10 @@ def find_files(cfg):
                     mt = posix_get_mime(fullpath)
 
                 db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
+
+            except UnicodeDecodeError as e:
+                db.insert_sysparam("warning",str(e))
+                logging.error(str(e))
             except OSError as e:
                 db.insert_sysparam("warning",str(e))
                 if e.errno == 2: #No Such File Or Directory
