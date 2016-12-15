@@ -65,6 +65,7 @@ def find_files(cfg):
     for dirpath,dirnames,filenames in os.walk(startpath):
         #print dirpath
         #pprint(filenames)
+        print "STARTS_HERE"+dirpath+"ENDS_HERE"
         for name in filenames:
             if name.startswith('.'):
                 continue
@@ -87,8 +88,6 @@ def find_files(cfg):
 
                 if mt is None or mt == 'None':
                     mt = posix_get_mime(fullpath)
-
-                print "STARTS_HERE"+dirpath+"ENDS_HERE"
 
                 db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
             except OSError as e:
