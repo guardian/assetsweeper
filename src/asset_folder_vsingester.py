@@ -130,6 +130,8 @@ class ImporterThread(threading.Thread):
         found = 0
         attempts = 0
         max_attempts = 3
+
+        filepath = unicode(filepath)
         
         vsfile = None
         while True:
