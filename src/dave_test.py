@@ -1,8 +1,5 @@
 #!/usr/bin/python
-
-intvar = 1 + 1
-
-print intvar
+# -*- coding: utf-8 -*-
 
 filepath = 'Día 2'
 
