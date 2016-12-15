@@ -65,7 +65,6 @@ def find_files(cfg):
     for dirpath,dirnames,filenames in os.walk(startpath):
         #print dirpath
         #pprint(filenames)
-        print "STARTS_HERE"+dirpath+"ENDS_HERE"
         for name in filenames:
             if name.startswith('.'):
                 continue
@@ -77,6 +76,7 @@ def find_files(cfg):
 
             fullpath = os.path.join(dirpath,name)
             print fullpath
+            print "STARTS_HERE"+dirpath+"ENDS_HERE"
             try:
                 statinfo = os.stat(fullpath)
                 pprint(statinfo)
