@@ -397,8 +397,8 @@ class importer_db:
     def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
         cursor=self.conn.cursor()
         self.conn.commit()
-        safe_filepath = filepath.decode('utf-8', 'ignore')
-        safe_filename = filename.decode('utf-8', 'ignore')
+        safe_filepath = filepath.decode('utf-8', 'strict')
+        safe_filename = filename.decode('utf-8', 'strict')
         try:
             cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
         except psycopg2.IntegrityError as e:
