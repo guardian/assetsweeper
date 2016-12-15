@@ -59,12 +59,13 @@ class FileOnIgnoreList(StandardError):
 
 
 class ImporterThread(threading.Thread):
-    def __init__(self,q,storageref,cfg):
+    def __init__(self,q,storageid,cfg):
         super(ImporterThread,self).__init__()
         self.templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
         self.mdTemplate = self.templateEnv.get_template('vsasset.xml')
         self.queue = q
-        self.st = deepcopy(storageref)  #vidispine classes probably aren't threadsafe
+        self.st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+        self.st.populate(storageid)
         #nor is the database interface
         self.db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
         self.found = 0
@@ -443,7 +444,7 @@ def innerMainFunc(cfg,db,limit):
     threads = []
     input_queue = Queue()
     for i in range(0,MAXTHREADS):
-        t = ImporterThread(input_queue,st,cfg)
+        t = ImporterThread(input_queue,storageid,cfg)
         t.start()
         threads.append(t)
 
