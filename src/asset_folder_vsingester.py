@@ -132,6 +132,8 @@ class ImporterThread(threading.Thread):
         attempts = 0
         max_attempts = 3
 
+        print "STARTS_HERE"+filepath+"ENDS_HERE"
+
         vsfile = None
         while True:
             try:
