@@ -452,9 +452,6 @@ def innerMainFunc(cfg,db,limit):
         threads.append(t)
 
     for fileref in db.filesForVSID(None):
-        #print "Got file ref:"
-        #for k,v in fileref.items():
-            #print "\t%s: %s" % (k,v)
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
@@ -466,9 +463,7 @@ def innerMainFunc(cfg,db,limit):
             filepath = re.sub(u'^{0}'.format(rootpath),'',filepath)
 
             n += 1
-            #print "Looking up %s in Vidispine..." %filepath
 
-            #(a,b,c) = attempt_file_import(fileref,filepath,st,mdTemplate)
             input_queue.put([fileref,filepath,rootpath])
             #found += a
             #withItems += b
