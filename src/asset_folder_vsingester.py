@@ -79,6 +79,9 @@ class ImporterThread(threading.Thread):
         while True:
             try:
                 (fileref, filepath, rootpath) = self.queue.get(True,timeout=60)  #wait until a queue item is available or time out after 60s, raising Empty
+
+                logging.info("File path at this point is: "+filepath)
+
                 if fileref is None:
                     logging.info("Received null fileref, so teminating")
                     break
@@ -131,8 +134,6 @@ class ImporterThread(threading.Thread):
         attempts = 0
         max_attempts = 3
 
-        filepath = unicode(filepath)
-        
         vsfile = None
         while True:
             try:
