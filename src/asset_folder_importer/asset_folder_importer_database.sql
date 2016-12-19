@@ -153,7 +153,7 @@ CREATE TABLE prelude_clips (
     import_date timestamp without time zone,
     project uuid,
     start_time bigint,
-    file_reference integer,
+    file_reference bigint,
     parent_id integer
 );
 
