@@ -39,6 +39,7 @@ class preludeclip:
             return None
 
         fileref=db.fileId(self.dataContent['FilePath'].encode('utf-8'))
+        logging.debug("Data going into update_prelude_clip_fileref: database_id = {0} fileref = {1}".format(self.database_id,fileref))
         db.update_prelude_clip_fileref(self.database_id,fileref)
 
     def commit(self,db,projectref):
@@ -108,6 +109,7 @@ class preludeimporter:
             if child_element.tag == "MasterClip":
                 clip=preludeclip(child_element.attrib)
                 #clip.dump()
+                logging.debug("Data going into clip.commit: projectid = {0}".format(self.projectid))
                 clip.commit(db,self.projectid)
                 self.clipList.append(clip)
 

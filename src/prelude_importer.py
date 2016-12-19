@@ -69,6 +69,7 @@ try:
                     continue
 
                 if name.endswith('.plproj'):
+                    logging.debug("Data going into preludeimporter: dirpath = {0} name = {1}".format(dirpath,name))
                     preludeproject = preludeimporter(db,os.path.join(dirpath,name))
                     preludeproject.dump()
                     #for c in preludeproject.clips():
