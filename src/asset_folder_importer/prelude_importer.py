@@ -5,6 +5,18 @@ from asset_folder_importer.database import *
 from datetime import datetime
 import xml.etree.ElementTree as ET
 import os
+import logging
+
+# Configurable parameters
+LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
+main_log_level = logging.DEBUG
+logfile = "/var/log/plutoscripts/prelude_importer.log"
+#End configurable parameters
+
+if logfile is not None:
+    logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
+else:
+    logging.basicConfig(format=LOGFORMAT, level=main_log_level)
 
 
 class NotPreludeProjectException(StandardError):
@@ -115,4 +127,11 @@ class preludeimporter:
             ver=self.version,
             nclips=self.nclips()
         )
+        logging.info("Prelude project at {path}/{filename}, version {ver} with {nclips} clips".format(
+            path=self.project_file_path,
+            filename=self.project_file_name,
+            ver=self.version,
+            nclips=self.nclips()
+        ))
         print "Database ID is %s, UUID is %s" % (self.projectid,self.uuid)
+        logging.info("Database ID is %s, UUID is %s" % (self.projectid,self.uuid))

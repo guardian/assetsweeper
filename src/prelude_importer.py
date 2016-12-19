@@ -12,7 +12,7 @@ from asset_folder_importer.config import *
 from asset_folder_importer.database import *
 from asset_folder_importer.prelude_importer import *
 import traceback
-import logging
+#import logging
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
