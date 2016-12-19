@@ -30,20 +30,24 @@ logger.level = logging.DEBUG
 
 THREADS = 3
 
+
 class PortalItemNotFound(StandardError):
     """
     Raised if the item does not exist within the Portal index
     """
     pass
 
+
 class InvalidLocation(StandardError):
     pass
+
 
 class NoCollectionFound(StandardError):
     """
     Raised if no collection could be found for the given asset folder
     """
     pass
+
 
 class InvalidProjectError(StandardError):
     """
@@ -343,11 +347,14 @@ try:
                             port=5432)
 
     cursor = conn.cursor()
-    if options.limit:
-        limit_clause = " limit {0}".format(int(options.limit))
-    else:
-        limit_clause = ""
-    cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL {0}".format(limit_clause))
+    try:
+        limit = int(options.limit)
+    except TypeError:   #if it's None, or similar
+        limit = None
+    except ValueError:  #if it's not numeric
+        limit = None
+        
+    cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL")
     
     for n in range(0,THREADS):
         t = ReattachThread(reattach_queue)
@@ -355,8 +362,13 @@ try:
         reattach_threads.append(t)
 
     counter = 0
+    processed = 0
     for row in cursor:
         counter +=1
+        if processed>=limit:
+            logger.info("Finishing after processing limit of {0} items".format(processed))
+            break
+            
         if row[0] is None:
             totals['unimported'] += float(row[1])/(1024.0**2)
             continue #the item has not yet been imported
@@ -370,6 +382,7 @@ try:
             try:
                 attempt_reattach(reattach_queue,row[0],row[2])
                 totals['reattached'] += float(row[1])/(1024.0**2)
+                processed +=1
             except InvalidProjectError as e:
                 logger.error(str(e))
                 logger.error("Attempting reattach of {0}".format(row[2]))
