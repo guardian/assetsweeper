@@ -660,6 +660,7 @@ class importer_db:
         cursor=self.conn.cursor()
 
         print "updating prelude clip %s with id %s" % (preludeid,fileid)
+        logging.debug("updating prelude clip %s with id %s" % (preludeid,fileid))
         cursor.execute("update prelude_clips set file_reference=%s where id=%s", (fileid,preludeid))
         cursor.execute("update files set prelude_ref=%s where id=%s", (preludeid,fileid))
 
