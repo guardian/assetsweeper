@@ -225,7 +225,7 @@ ALTER SEQUENCE prelude_projects_id_seq OWNED BY prelude_projects.id;
 
 CREATE TABLE sidecar_files (
     id integer NOT NULL,
-    file_ref integer,
+    file_ref bigint,
     sidecar_path text,
     sidecar_name text
 );
