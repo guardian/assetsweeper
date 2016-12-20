@@ -278,9 +278,9 @@ def attempt_reattach(reattach_queue,item_id,filepath):
 def lookup_portal_item(esclient,item_id):
     """
     Returns an array of the collections that this item belongs to, according to Portal's ES index.
-    :param esclient:
-    :param item_id:
-    :return:
+    :param esclient: Elastic search client object to use
+    :param item_id: item ID to look for
+    :return: array of collection names that this belongs to. Blank array if it does not belong.
     """
     parts = id_xplodr.match(item_id)
     query = {
@@ -419,7 +419,10 @@ try:
     pprint(not_found)
     
 except Exception:
+    #capture the exception immediately
     raven_client.captureException()
+    
+    #ensure that all enqueud actions have completed before terminating
     for t in reattach_threads:
         reattach_queue.put(None)
     
