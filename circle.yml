@@ -1,0 +1,18 @@
+machine:
+  timezone: Europe/London
+  python:
+    version: 2.7.12
+
+dependencies:
+  cache_directories:
+    - "/opt/circleci/.pyenv/versions/2.7.12/lib"
+
+test:
+  override:
+    - declare -x PYTHONPATH=$PWD/src:$PYTHONPATH; python -m unittest discover -s tests
+
+deployment:
+  master:
+    branch: /.*/
+    commands:
+      - ./builddeployable.sh
