@@ -666,12 +666,11 @@ class importer_db:
 
     def add_sidecar_ref(self,fileid,sidecar_path):
         (sidecar_dir,sidecar_name)=os.path.split(sidecar_path)
-
+        logging.debug("Data used in add_sidecar_ref: fileid = {0} sidecar_dir = {1} sidecar_name = {2}".format(fileid,sidecar_dir,sidecar_name))
         self.conn.commit()
         try:
             cursor=self.conn.cursor()
             cursor.execute("insert into sidecar_files (file_ref,sidecar_path,sidecar_name) values (%s,%s,%s)", (fileid,sidecar_dir,sidecar_name))
-            logging.debug("Data used in add_sidecar_ref: fileid = {0} sidecar_dir = {1} sidecar_name = {2}".format(fileid,sidecar_dir,sidecar_name))
         except:
             print "Unable to update sidecar table"
             self.conn.rollback()
