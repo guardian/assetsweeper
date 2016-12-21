@@ -2,17 +2,25 @@ machine:
   timezone: Europe/London
   python:
     version: 2.7.12
+  environment:
+    PYTHONPATH: ${HOME}/assetsweeper/python_vidi
 
 dependencies:
   cache_directories:
-    - "/opt/circleci/.pyenv/versions/2.7.12/lib"
+    - "/home/ubuntu/virtualenvs/venv-2.7.12"
 
-test:
+checkout:
+  post:
+    - git submodule init
+    - git submodule update
+
+database:
   override:
-    - declare -x PYTHONPATH=$PWD/src:$PYTHONPATH; python -m unittest discover -s tests
+    - psql circle_test < src/asset_folder_importer/asset_folder_importer_database.sql
+    - psql circle_test < src/asset_folder_importer/schema_update_1.sql
 
 deployment:
   master:
     branch: /.*/
     commands:
-      - ./builddeployable.sh
+      - chmod a+x builddeployable.sh; ./builddeployable.sh

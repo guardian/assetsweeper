@@ -4,10 +4,10 @@ import os
 import threading
 import mock
 
+
 class TestThread(threading.Thread):
     def __init__(self, input_q, keywordarg=None, *args, **kwargs):
         super(TestThread, self).__init__(*args, **kwargs)
-        print "initialising TestThread"
         self._queue = input_q
         self.keywordarg = keywordarg
         self.outputvalue = None
@@ -20,7 +20,6 @@ class TestThread(threading.Thread):
         
         while True:
             (prio, item) = self._queue.get()
-            print "Got item {0}".format(item)
             if item is None: break
             self.processor(item)
             # simulate processing with a 10 second wait
@@ -29,16 +28,22 @@ class TestThread(threading.Thread):
             
 class TestThreadpool(unittest.TestCase):
     from asset_folder_importer.threadpool import ThreadPool
-    
-
-                
+                  
     def test_new_threadpool(self):
+        """
+        test that a thread pool starts up correctly, and safely terminate
+        :return:
+        """
         pool = self.ThreadPool(TestThread,initial_size=1,keywordarg="keywordstring")
         
         self.assertEqual(threading.activeCount(),2)
         pool.safe_terminate()
         
     def test_scaleup(self):
+        """
+        test that a thread pool will scale up properly
+        :return:
+        """
         pool = self.ThreadPool(TestThread, initial_size=1, keywordarg="keywordstring")
     
         try:
@@ -51,6 +56,10 @@ class TestThreadpool(unittest.TestCase):
             pool.safe_terminate()
         
     def test_scaledown(self):
+        """
+        test that a thread pool will scale down properly
+        :return:
+        """
         pool = self.ThreadPool(TestThread, initial_size=10, keywordarg="keywordstring")
         
         try:
@@ -68,6 +77,10 @@ class TestThreadpool(unittest.TestCase):
             pool.safe_terminate()
 
     def test_put_queue(self):
+        """
+        test that the thread pool object exposes a queue properly
+        :return:
+        """
         from time import sleep
         testitem = {
             'a': 'dictionary'
@@ -82,4 +95,3 @@ class TestThreadpool(unittest.TestCase):
             self.assertEqual(thread_ref.outputvalue,testitem)
         finally:
             if pool is not None: pool.safe_terminate()
-        
