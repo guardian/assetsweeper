@@ -85,6 +85,7 @@ class ImporterThread(threading.Thread):
                     break
 
                 result = self.attempt_file_import(fileref,filepath,rootpath)
+                logging.debug("Data going into attempt_file_import: fileref = {0} filepath = {1} rootpath = {2}".format(fileref,filepath,rootpath))
                 if isinstance(result,tuple) or isinstance(result,list):
                     (a,b,c) = result
                     self.found += a
@@ -347,6 +348,7 @@ class ImporterThread(threading.Thread):
                     logging.info("Checking for potential sidecar at %s" %metafile)
                     if os.path.exists(metafile):
                         db.add_sidecar_ref(fileref['id'],metafile)
+                        logging.debug("Data going into add_sidecar_ref: fileref['id'] = {0} metafile = {1}".format(fileref['id'],metafile))
                         logging.info("Attempting to import %s" %metafile)
                         try:
                             vsfile.memberOfItem.debug=True
