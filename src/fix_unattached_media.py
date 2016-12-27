@@ -298,7 +298,7 @@ def lookup_portal_item(esclient,item_id):
     wait_time = 2
     while True:
         try:
-            result = esclient.search(index='portal_1',doc_type='item',body=query)
+            result = esclient.search(index='portal_1',doc_type='item',body=query, request_timeout=120)
             break
         except ReadTimeoutError as e:
             logger.warning(str(e))
