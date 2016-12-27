@@ -341,7 +341,7 @@ try:
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
     (options, args) = parser.parse_args()
 
-    esclient = elasticsearch.Elasticsearch(options.eshost)
+    esclient = elasticsearch.Elasticsearch(options.eshost, timeout=120)
 
     conn = psycopg2.connect(database="asset_folder_importer", user=options.dbuser, password=options.dbpasswd, host=options.dbhost,
                             port=5432)
