@@ -54,13 +54,12 @@ def find_files(cfg):
         '\.PFR$',   #Cubase creates these filetypes
         '\.peak$',
         '_synctemp', #this is created by PluralEyes
+        'Render Files',
+        '\.plist$'
     ]
 
-    reShouldIgnore = []
-    for expr in pathShouldIgnore:
-        reShouldIgnore.append(re.compile(expr))
+    reShouldIgnore = map(lambda expr: re.compile(expr), pathShouldIgnore)
 
-    #try:
     n=0
     for dirpath,dirnames,filenames in os.walk(startpath):
         #print dirpath
@@ -70,6 +69,7 @@ def find_files(cfg):
                 continue
             shouldIgnore = False
 
+            #shouldIgnore = reduce(lambda rv,regex: True if regex.search(dirpath) is not None else False, reShouldIgnore)
             for regex in reShouldIgnore:
                 if regex.search(dirpath) is not None:
                     shouldIgnore = True
