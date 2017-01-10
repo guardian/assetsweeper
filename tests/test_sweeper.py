@@ -19,3 +19,15 @@ class TestSweeper(unittest.TestCase):
         filepath = "/etc/hosts"
 
         self.assertEqual(posix_get_mime(filepath),"text/plain")
+
+    def test_find_files(self):
+
+        import sys
+        sys.path.insert(0, '../src/')
+
+        from asset_folder_sweeper import find_files
+        from asset_folder_importer.config import configfile
+
+        cfg=configfile("/etc/asset_folder_importer.cfg")
+
+        self.assertGreater(find_files(cfg), 10)
