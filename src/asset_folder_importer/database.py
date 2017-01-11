@@ -117,10 +117,10 @@ class importer_db:
         sqlcmd = "CREATE INDEX run_history_hostpid on run_history (pid,host)"
         cursor.execute(sqlcmd)
         sqlcmd = "create index system_pid on system (pid)"
-	cursor.execute(sqlcmd)
-	sqlcmd = "create index system_key on system (key);"
-	cursor.execute(sqlcmd)
- 
+        cursor.execute(sqlcmd)
+        sqlcmd = "create index system_key on system (key);"
+        cursor.execute(sqlcmd)
+
     def _has_table(self,tablename,schemaname="public"):
         cursor = self.conn.cursor()
         sqlcmd = """
@@ -193,11 +193,6 @@ class importer_db:
             pass
 
         self.conn.rollback()
-
-# select * from system where ((key='exit' and value like '%') or (key='script_version' or key='run_start'))
-#  and pid in (select pid from system where key='script_version' and value like 'premiere_get_referenced_media%')
-#  order by timestamp desc
-
 
     def pid_for_status(self,statusid,limit=1):
         if not statusid:
@@ -285,14 +280,7 @@ class importer_db:
         self.insert_sysparam('OS_version',platform.version())
         self.insert_sysparam('run_start',dt.datetime.now().isoformat('T'))
         cursor = self.conn.cursor()
-        # CREATE TABLE run_history (
-        #     id integer NOT NULL,
-        #     scriptname text NOT NULL,
-        #     start_time timestamp with time zone,
-        #     end_time timestamp with time zone,
-        #     pid integer NOT NULL,
-        #     host character varying(64)
-        # );
+
         cursor.execute("insert into run_history (scriptname,start_time,pid,host) values (%s,%s,%s,%s)",
                        (scriptname,dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
         self.conn.commit()
@@ -433,14 +421,11 @@ class importer_db:
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
         cursor.execute("select * from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
         fields = map(lambda x: x[0], cursor.description)
         result=cursor.fetchone()
 
         if result:
-            #print "got id %s" % result[0]
             return dict(zip(fields,result))
         return None
 
@@ -459,13 +444,10 @@ class importer_db:
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
         cursor.execute("select id from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
         result=cursor.fetchone()
 
         if result:
-            #print "got id %s" % result[0]
             return result[0]
         return None
 
@@ -499,16 +481,10 @@ class importer_db:
                 print "Warning: importer_db::files: %s. 'since' argument is ignored." % e
 
         if pathspec:
-            #try:
-                sql_params.append("filepath like '%{path}%'".format(path=pathspec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+            sql_params.append("filepath like '%{path}%'".format(path=pathspec))
 
         if namespec:
-            #try:
-                sql_params.append("filename like '%{name}%'".format(name=namespec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+            sql_params.append("filename like '%{name}%'".format(name=namespec))
 
         sqlcmd="select * from files "
         if len(sql_params) >0:
@@ -659,7 +635,6 @@ class importer_db:
     def update_prelude_clip_fileref(self,preludeid,fileid):
         cursor=self.conn.cursor()
 
-        print "updating prelude clip %s with id %s" % (preludeid,fileid)
         logging.debug("updating prelude clip %s with id %s" % (preludeid,fileid))
         cursor.execute("update prelude_clips set file_reference=%s where id=%s", (fileid,preludeid))
         cursor.execute("update files set prelude_ref=%s where id=%s", (preludeid,fileid))
