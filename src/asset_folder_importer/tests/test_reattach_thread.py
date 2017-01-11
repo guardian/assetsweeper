@@ -8,7 +8,7 @@ import logging
 
 class TestReattachThread(unittest.TestCase):
     def test_runloop_timeout(self):
-        from asset_folder_importer.fix_unattacted_media import reattach_thread
+        from asset_folder_importer.fix_unattached_media import reattach_thread
         from Queue import PriorityQueue
         q = PriorityQueue()
         
@@ -26,7 +26,7 @@ class TestReattachThread(unittest.TestCase):
         logger.info.assert_called_with("Reattach thread terminating")
 
     def test_runloop_execute(self):
-        from asset_folder_importer.fix_unattacted_media import reattach_thread
+        from asset_folder_importer.fix_unattached_media import reattach_thread
         from Queue import PriorityQueue
         from raven import Client
         

@@ -9,7 +9,7 @@ machine:
 
 dependencies:
   cache_directories:
-    - "/home/ubuntu/virtualenvs/venv-2.7.12"
+    - "/home/ubuntu/virtualenvs/venv-2.6.6"
 
 checkout:
   post:
@@ -25,5 +25,5 @@ deployment:
   master:
     branch: /.*/
     commands:
-      - cd src; python ./setup.py bdist_rpm --release ${CIRCLE_BUILD_NUM} --requires 'python-psycopg2'
-      - for x in `ls src/dist/*`; do aws s3 cp "$x" s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/`basename $x` --acl public-read; done
+      - mkdir -p ~/rpmbuild
+      - ./buildrpm.sh

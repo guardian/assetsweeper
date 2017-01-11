@@ -7,7 +7,10 @@ setup(name='asset_folder_importer',
       description='Set of programmes to handle import of items to MAM from asset folders',
       author='Andy Gallagher',
       author_email='andy.gallagher@theguardian.com',
-      packages=['asset_folder_importer','asset_folder_importer.providers'],
+      packages=['asset_folder_importer',
+                'asset_folder_importer.providers',
+                'asset_folder_importer.fix_unattached_media'
+                ],
       package_data={
             'asset_folder_importer': ['metadata_templates/*']
       },

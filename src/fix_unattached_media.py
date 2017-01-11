@@ -6,12 +6,11 @@ import logging
 from optparse import OptionParser
 from pprint import pprint
 import raven
-from asset_folder_importer.fix_unattacted_media.exceptions import *
-from asset_folder_importer.fix_unattacted_media.collection_lookup import CollectionLookup
-from asset_folder_importer.fix_unattacted_media.reattach_thread import ReattachThread
-from asset_folder_importer.fix_unattacted_media import *
+from asset_folder_importer.fix_unattached_media.exceptions import *
+from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
+from asset_folder_importer.fix_unattached_media.reattach_thread import ReattachThread
+from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
-from Queue import Queue, Empty
 
 raven_client = raven.Client('https://bd4329a849e2434c9fde4b5c392b386d:64f6281adc75446d9d19d674c565cb51@sentry.multimedia.theguardian.com/18')
 
