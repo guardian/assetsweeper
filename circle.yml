@@ -25,5 +25,5 @@ deployment:
   master:
     branch: /.*/
     commands:
-      - cd src; python ./setup.py bdist_rpm
-      - for x in `ls src/dist/*`; do aws s3 cp "$x" s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}; done
+      - cd src; python ./setup.py bdist_rpm --release ${CIRCLE_BUILD_NUM} --requires 'python-psycopg2'
+      - for x in `ls src/dist/*`; do aws s3 cp "$x" s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/`basename $x` --acl public-read; done
