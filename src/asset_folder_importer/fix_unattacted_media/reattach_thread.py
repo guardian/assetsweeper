@@ -10,13 +10,15 @@ class ReattachThread(Thread):
     It links them, and also propagates media management flags from parent to child
     """
     
-    def __init__(self, input_queue, options, raven_client, *args, **kwargs):
+    def __init__(self, input_queue, options=None, raven_client=None, timeout=500, logger=None, should_raise=False, *args, **kwargs):
         super(ReattachThread, self).__init__(*args, **kwargs)
         self._inq = input_queue
-        self.logger = logging.getLogger("ReattachThread")
+        self.logger = logging.getLogger("ReattachThread") if logger==None else logger
         self.logger.level = logging.DEBUG
         self.options = options
         self.raven_client = raven_client
+        self.timeout=timeout
+        self.should_raise = should_raise
         
     def reattach(self, itemid, collectionid):
         coll = VSCollection(host=self.options.vshost, port=self.options.vsport, user=self.options.vsuser, passwd=self.options.vspass)
@@ -41,6 +43,7 @@ class ReattachThread(Thread):
             sensitive = True
         if coll.get('gnm_storage_ruke_deep_archive') == 'storage_rule_deep_archive':
             deep_archive = True
+            
         item = VSItem(host=self.options.vshost, port=self.options.vsport, user=self.options.vsuser, passwd=self.options.vspass)
         item.name = itemid
         item.set_metadata({
@@ -56,13 +59,14 @@ class ReattachThread(Thread):
         from Queue import Empty
         while True:
             try:
-                item = self._inq.get(block=True, timeout=500)
+                (prio,item) = self._inq.get(block=True, timeout=self.timeout)
                 if item is None: break
                 self.reattach(item['itemid'], item['collectionid'])
             
             except Empty:
                 self.logger.error("Input queue timed out, exiting.")
+                break
             except Exception:
-                self.raven_client.captureException()
-                raise
+                if self.raven_client is not None: self.raven_client.captureException()
+                if self.should_raise: raise
         self.logger.info("Reattach thread terminating")
