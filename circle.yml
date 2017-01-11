@@ -1,7 +1,7 @@
 machine:
   timezone: Europe/London
   python:
-    version: 2.7.12
+    version: 2.6.6
   environment:
     PYTHONPATH: ${HOME}/assetsweeper/python_vidi
   pre:
