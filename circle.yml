@@ -4,6 +4,8 @@ machine:
     version: 2.7.12
   environment:
     PYTHONPATH: ${HOME}/assetsweeper/python_vidi
+  pre:
+    - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev
 
 dependencies:
   cache_directories:
@@ -23,4 +25,4 @@ deployment:
   master:
     branch: /.*/
     commands:
-      - chmod a+x builddeployable.sh; ./builddeployable.sh
+      - cd src; python ./setup.py bdist_rpm
