@@ -44,7 +44,7 @@ if [ "${VIRTUAL_ENV}" != "" ]; then
 fi
 
 RPM_BASE=$(grep '%define name' ${SPECFILE} | awk -F ' ' '{print $3}')
-PATH=/usr/bin:/usr/local/bin
+PATH=/usr/bin:/bin:/usr/local/bin
 rpmbuild -bb ${SPECFILE}
 
 if [ "$?" != "0" ]; then
