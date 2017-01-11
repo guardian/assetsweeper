@@ -26,3 +26,4 @@ deployment:
     branch: /.*/
     commands:
       - cd src; python ./setup.py bdist_rpm
+      - for x in `ls src/dist/*`; do aws s3 cp "$x" s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}; done
