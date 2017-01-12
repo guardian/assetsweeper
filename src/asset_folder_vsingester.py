@@ -16,6 +16,8 @@ import re
 import time
 import logging
 from Queue import Queue
+from asset_folder_importer.asset_folder_vsingester.exceptions import *
+from asset_folder_importer.asset_folder_vsingester.importer_thread import *
 
 MAXTHREADS = 4
 #suid perl script so we don't need to run the whole shebang as root
@@ -38,20 +40,12 @@ def innerMainFunc(cfg,db,limit):
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-    #st.debug=True
     st.populate(storageid)
-    #logging.info("Storage path is at {0}".format(st.dataContent['uri']))
-    #st.dump()
 
     possible_roots = []
     for uri in st.urisOfType('file',pathOnly=True,decode=True):
         logging.info("\tFile access at: %s" % uri)
         possible_roots.append(uri)
-
-    #raise StandardError("test")
-
-    #Step three. Now set up the template engine
-    #now done in class init for ImporterThread
 
     #Step four. Find un-imported files and check to see if they are imported
     n=0
@@ -80,9 +74,6 @@ def innerMainFunc(cfg,db,limit):
             n += 1
 
             input_queue.put([fileref,filepath,rootpath])
-            #found += a
-            #withItems += b
-            #imported += c
         if isinstance(limit, int):
             if n > limit:
                 logging.warning("Reached requested limit of {0} items, stopping for now.".format(limit))

@@ -154,11 +154,39 @@ class ImporterThread(threading.Thread):
     
         return stdout
         
-    def attempt_add_to_project(self, preludeproject, cubaseref, vsfile):
+    def ask_pluto_for_projectid(self, filepath):
+        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
+        l = AssetFolderLocator(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
+                                user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
+        
+        test_path_segments = os.path.dirname(filepath).split('/')
+        print test_path_segments
+        segsize = len(test_path_segments)
+        n=0
+        while True:
+            try:
+                if n==0:
+                    test_path="/".join(test_path_segments)
+                else:
+                    test_path = "/".join(test_path_segments[0:n])
+                self.logger.debug("{1} checking for asset folder at {0}".format(test_path, n))
+                if n<-segsize:
+                    return None #we've run out of path to check
+                project_id = l.find_assetfolder(test_path)
+                return project_id
+            except ProjectNotFound:
+                n-=1
+            except IndexError:  #we've run out of path segments
+                self.logger.debug("no more path segments to check")
+                break
+        return None
+    
+    def attempt_add_to_project(self, filepath, preludeproject, cubaseref, vsfile):
+        projectId = cubaseref['project_id']
+        VSprojectRef = VSCollection(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
+                                    user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         if preludeproject:
             projectId = re.sub(u'\.[^\.]+$', '', preludeproject['filename'])
-            VSprojectRef = VSCollection(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
-                                        user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
             # VSprojectRef.populate(projectId)
             VSprojectRef.name = projectId
         
@@ -166,9 +194,6 @@ class ImporterThread(threading.Thread):
             return True
         elif cubaseref:
             try:
-                projectId = cubaseref['project_id']
-                VSprojectRef = VSCollection(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
-                                            user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
                 VSprojectRef.populate(projectId)
                 VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
                 return True
@@ -177,6 +202,12 @@ class ImporterThread(threading.Thread):
                     vsfile.memberOfItem, projectId, e.message))
                 self.logger.warning("Warning: %s" % e.message)
                 self.db.commit()
+        else:
+            projectId = self.ask_pluto_for_projectid(filepath)
+            if projectId is not None:
+                VSprojectRef.name = projectId
+                VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
+                return True
         return False
     
     def run(self):
@@ -272,7 +303,6 @@ class ImporterThread(threading.Thread):
                 if preludeclip is not None:
                     break
         return preludeclip
-    
                     
     def get_external_supplier_metadata(self, filepath):
         """
@@ -419,7 +449,7 @@ class ImporterThread(threading.Thread):
                         # no point in doing the below, since it relies on having a project reference available
                         return (found, withItems, imported)
                     
-                if not self.attempt_add_to_project(preludeproject, cubaseref, vsfile):
+                if not self.attempt_add_to_project(filepath, preludeproject, cubaseref, vsfile):
                     return (found, withItems, imported)
             
                 self.attempt_import_sidecar(rootpath, filepath, fileref, vsfile)
