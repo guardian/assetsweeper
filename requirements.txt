@@ -3,3 +3,5 @@ raven==5.32.0
 mock==2.0.0
 elasticsearch==1.4.0
 jinja2==2.7.3
+psycopg2==2.6.2
+PyYAML==3.11

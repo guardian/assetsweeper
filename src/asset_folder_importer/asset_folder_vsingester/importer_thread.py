@@ -36,7 +36,8 @@ class ImporterThread(threading.Thread):
         self.queue = q
         self.st = VSStorage(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
                             passwd=cfg.value('vs_password'))
-        self.st.populate(storageid)
+        if storageid is not None:
+            self.st.populate(storageid)
         self.db = dbconn if dbconn is not None else importer_db(__version__, hostname=cfg.value('database_host'),
                                                                 port=cfg.value('database_port'),
                                                                 username=cfg.value('database_user'),
