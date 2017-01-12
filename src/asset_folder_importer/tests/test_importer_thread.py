@@ -33,7 +33,11 @@ class TestImporterThread(unittest.TestCase):
                                 '/path/to/myfile.mp4.XML','/path/to/myfile.mp4.XMP'])
         
         result = map(lambda x: x, i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=True))
-        self.assertEqual(result,[])
+        self.assertEqual(result,['/path/to/myfile.xml', '/path/to/myfile.xmp', '/path/to/myfile.meta',
+                                '/path/to/myfile.XML', '/path/to/myfile.XMP', '/path/to/myfile.mp4.xml',
+                                '/path/to/myfile.mp4.xmp', '/path/to/myfile.mp4.meta', '/path/to/myfile.mp4.XML',
+                                '/path/to/myfile.mp4.XMP', '/path/to/myfileM01.xml', '/path/to/myfileM01.xmp',
+                                '/path/to/myfileM01.meta', '/path/to/myfileM01.XML', '/path/to/myfileM01.XMP'])
         
     def test_import_tags(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
