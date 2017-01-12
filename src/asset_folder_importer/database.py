@@ -517,7 +517,7 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
 
         if not re.match(u'^\w{2}-\d+',vsid):

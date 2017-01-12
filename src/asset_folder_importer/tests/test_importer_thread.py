@@ -9,6 +9,10 @@ import json
 
 
 class TestImporterThread(unittest.TestCase):
+    def __init__(self, *args,**kwargs):
+        super(TestImporterThread, self).__init__(*args,**kwargs)
+        self.mydir = os.path.dirname(__file__)
+    
     class FakeConfig(object):
         def __init__(self, content):
             self._content = content
@@ -25,7 +29,10 @@ class TestImporterThread(unittest.TestCase):
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_",username="circletest",password="testpass")
 
-        i = ImporterThread(None,None,self.FakeConfig({'footage_providers_config': '../../footage_providers.yml'}),dbconn=db)
+        i = ImporterThread(None,None,
+                           self.FakeConfig({
+                               'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                           }),dbconn=db)
         
         result = map(lambda x: x, i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=False))
         self.assertEqual(result,['/path/to/myfile.xml', '/path/to/myfile.xmp', '/path/to/myfile.meta', '/path/to/myfile.XML',
@@ -46,7 +53,10 @@ class TestImporterThread(unittest.TestCase):
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_",username="circletest",password="testpass")
             
-        i = ImporterThread(None, None, self.FakeConfig({'footage_providers_config': '../../footage_providers.yml'}),dbconn=db)
+        i = ImporterThread(None,None,
+                           self.FakeConfig({
+                               'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                           }),dbconn=db)
         
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'video/mp4'}),['lowres'])
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'video/quicktime'}), ['lowres'])
@@ -72,7 +82,6 @@ class TestImporterThread(unittest.TestCase):
             self.jackpot = False
             
         def getresponse(self):
-            #return TestImporterThread.FakeResponse(self._content,self._status)
             if self.jackpot:
                 return TestImporterThread.FakeResponse(json.dumps({'status': 'ok', 'project': 'KP-1234'}),200)
             else:
@@ -81,7 +90,6 @@ class TestImporterThread(unittest.TestCase):
         def request(self, method, url, headers=None):
             import urllib
             url = urllib.unquote(url)
-            print url
             if url.endswith('/path/to/my/assetfolder'):
                 self.jackpot=True
         
@@ -93,14 +101,17 @@ class TestImporterThread(unittest.TestCase):
             db = importer_db("_test_Version_",username="circletest",password="testpass")
 
         with mock.patch('httplib.HTTPConnection') as mock_connection:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(level=logging.ERROR)
             logger = logging.getLogger("tester")
-            logger.setLevel(logging.DEBUG)
-            i = ImporterThread(None,None,self.FakeConfig({'footage_providers_config': '../../footage_providers.yml'}),dbconn=db, logger=logger)
-
+            logger.setLevel(logging.ERROR)
+            i = ImporterThread(None, None,
+                               self.FakeConfig({
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                               }), dbconn=db)
+            
             mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
             result = i.ask_pluto_for_projectid("/path/to/something/invalid/media.mxf")
-            self.assertIsNone(result)
+            self.assertEqual(result,None)
 
 
     def test_find_valid_projectid(self):
@@ -111,16 +122,17 @@ class TestImporterThread(unittest.TestCase):
             db = importer_db("_test_Version_", username="circletest", password="testpass")
         
         with mock.patch('httplib.HTTPConnection') as mock_connection:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(level=logging.ERROR)
             logger = logging.getLogger("tester")
-            logger.setLevel(logging.DEBUG)
-            i = ImporterThread(None, None, self.FakeConfig({'footage_providers_config': '../../footage_providers.yml'}),
-                               dbconn=db, logger=logger)
+            logger.setLevel(logging.ERROR)
+            i = ImporterThread(None, None,
+                               self.FakeConfig({
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                               }), dbconn=db)
             
             mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
             result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/with/subdirectories/media.mxf")
             self.assertEqual(result,'KP-1234')
-
 
             result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/media.mxf")
             self.assertEqual(result, 'KP-1234')

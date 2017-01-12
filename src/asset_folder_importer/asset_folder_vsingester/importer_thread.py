@@ -160,7 +160,6 @@ class ImporterThread(threading.Thread):
                                 user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         
         test_path_segments = os.path.dirname(filepath).split('/')
-        print test_path_segments
         segsize = len(test_path_segments)
         n=0
         while True:
@@ -182,10 +181,10 @@ class ImporterThread(threading.Thread):
         return None
     
     def attempt_add_to_project(self, filepath, preludeproject, cubaseref, vsfile):
-        projectId = cubaseref['project_id']
         VSprojectRef = VSCollection(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
                                     user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         if preludeproject:
+            #if the item is attached to a prelude project that will immediately give us the project ID to attach to
             projectId = re.sub(u'\.[^\.]+$', '', preludeproject['filename'])
             # VSprojectRef.populate(projectId)
             VSprojectRef.name = projectId
@@ -193,18 +192,24 @@ class ImporterThread(threading.Thread):
             VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
             return True
         elif cubaseref:
+            #if it's got a Cubase reference we can get the project ID from there
             try:
-                VSprojectRef.populate(projectId)
+                VSprojectRef.populate(cubaseref['project_id'])
                 VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
                 return True
             except Exception as e:
                 self.db.insert_sysparam("warning", "Unable to add %s to collection %s: %s" % (
-                    vsfile.memberOfItem, projectId, e.message))
+                    vsfile.memberOfItem, cubaseref['project_id'], e.message))
                 self.logger.warning("Warning: %s" % e.message)
                 self.db.commit()
         else:
+            #otherwise, ask Pluto's gnm_asset_folder plugin to look up the file path for us
             projectId = self.ask_pluto_for_projectid(filepath)
-            if projectId is not None:
+            if projectId is None:
+                self.db.insert_sysparam("warning", "Pluto has no record of asset folder for %s" % filepath)
+                self.logger.warning("Pluto has no record of asset folder for %s" % filepath)
+                self.db.commit()
+            else:
                 VSprojectRef.name = projectId
                 VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
                 return True
@@ -440,7 +445,6 @@ class ImporterThread(threading.Thread):
                         
                         self.logger.warning("Updating file record with vidispine id %s" % vsfile.memberOfItem.name)
                         self.db.update_file_vidispine_id(fileref['id'], vsfile.memberOfItem.name)
-                        # print "Found prelude clip info for %s" % mediaFile
                         break
                     except NotFoundError as e:
                         self.db.insert_sysparam("warning", e.message)
