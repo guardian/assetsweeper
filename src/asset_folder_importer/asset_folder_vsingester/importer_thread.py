@@ -361,7 +361,7 @@ class ImporterThread(threading.Thread):
             self.logger.info("Found file %s in Vidispine at file id %s, item id %s" % (
                 filepath, vsfile.name, vsfile.memberOfItem.name))
             self.db.update_file_vidispine_id(fileref['id'], vsfile.memberOfItem.name)
-            self.attempt_add_to_project(filepath, None, None, vsfile)
+            self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), None, None, vsfile)
                 
             withItems += 1
         else:
@@ -455,7 +455,7 @@ class ImporterThread(threading.Thread):
                         # no point in doing the below, since it relies on having a project reference available
                         return (found, withItems, imported)
                     
-                if not self.attempt_add_to_project(filepath, preludeproject, cubaseref, vsfile):
+                if not self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), preludeproject, cubaseref, vsfile):
                     return (found, withItems, imported)
             
                 self.attempt_import_sidecar(rootpath, filepath, fileref, vsfile)
