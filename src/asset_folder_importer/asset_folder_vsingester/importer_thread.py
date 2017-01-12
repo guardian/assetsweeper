@@ -359,8 +359,10 @@ class ImporterThread(threading.Thread):
         
         if vsfile.memberOfItem is not None:
             self.logger.info("Found file %s in Vidispine at file id %s, item id %s" % (
-            filepath, vsfile.name, vsfile.memberOfItem.name))
+                filepath, vsfile.name, vsfile.memberOfItem.name))
             self.db.update_file_vidispine_id(fileref['id'], vsfile.memberOfItem.name)
+            self.attempt_add_to_project(filepath, None, None, vsfile)
+                
             withItems += 1
         else:
             self.logger.info(
