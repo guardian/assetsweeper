@@ -42,6 +42,7 @@ class AssetFolderLocator(object):
         
         self._http.request("GET",url,headers=headers)
         response = self._http.getresponse()
+        raw_content = response.read() #must always read or you get ResponseNotReady when re-using
         
         self._logger.debug("server returned {0}".format(response.status))
         if response.status==404:
@@ -50,7 +51,7 @@ class AssetFolderLocator(object):
         if response.status<200 or response.status>299:
             raise HTTPError(url, response)
         
-        content = json.loads(response.read())
+        content = json.loads(raw_content)
         
         self._logger.debug("json returned: {0}".format(content))
         if content['status'] == "ok":
