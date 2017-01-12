@@ -507,7 +507,7 @@ class importer_db:
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
