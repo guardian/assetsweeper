@@ -4,15 +4,10 @@ __version__ = '$Rev$ $LastChangedDate$'
 import psycopg2
 import traceback
 import re
-from pprint import pprint
 import platform
 import os
 import datetime as dt
 import logging
-
-
-#useful query:
-#select files.filename,mtime,imported_id,asset_name,prelude_projects.filename,prelude_projects.clips from files left join prelude_clips on (prelude_clips.id=prelude_ref) left join prelude_projects on (prelude_projects.id=prelude_clips.parent_id) where imported_id is not NULL
 
 
 class DataError(StandardError):
@@ -22,8 +17,10 @@ class DataError(StandardError):
 class ArgumentError(StandardError):
     pass
 
+
 class AlreadyLinkedError(StandardError):
     pass
+
 
 class importer_db:
     def __init__(self,clientversion,hostname="localhost",port="5432",username="",password=""):
@@ -117,10 +114,10 @@ class importer_db:
         sqlcmd = "CREATE INDEX run_history_hostpid on run_history (pid,host)"
         cursor.execute(sqlcmd)
         sqlcmd = "create index system_pid on system (pid)"
-	cursor.execute(sqlcmd)
-	sqlcmd = "create index system_key on system (key);"
-	cursor.execute(sqlcmd)
- 
+        cursor.execute(sqlcmd)
+        sqlcmd = "create index system_key on system (key);"
+        cursor.execute(sqlcmd)
+
     def _has_table(self,tablename,schemaname="public"):
         cursor = self.conn.cursor()
         sqlcmd = """
@@ -193,11 +190,6 @@ class importer_db:
             pass
 
         self.conn.rollback()
-
-# select * from system where ((key='exit' and value like '%') or (key='script_version' or key='run_start'))
-#  and pid in (select pid from system where key='script_version' and value like 'premiere_get_referenced_media%')
-#  order by timestamp desc
-
 
     def pid_for_status(self,statusid,limit=1):
         if not statusid:
@@ -285,14 +277,7 @@ class importer_db:
         self.insert_sysparam('OS_version',platform.version())
         self.insert_sysparam('run_start',dt.datetime.now().isoformat('T'))
         cursor = self.conn.cursor()
-        # CREATE TABLE run_history (
-        #     id integer NOT NULL,
-        #     scriptname text NOT NULL,
-        #     start_time timestamp with time zone,
-        #     end_time timestamp with time zone,
-        #     pid integer NOT NULL,
-        #     host character varying(64)
-        # );
+
         cursor.execute("insert into run_history (scriptname,start_time,pid,host) values (%s,%s,%s,%s)",
                        (scriptname,dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
         self.conn.commit()
@@ -433,14 +418,11 @@ class importer_db:
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
         cursor.execute("select * from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
         fields = map(lambda x: x[0], cursor.description)
         result=cursor.fetchone()
 
         if result:
-            #print "got id %s" % result[0]
             return dict(zip(fields,result))
         return None
 
@@ -459,13 +441,10 @@ class importer_db:
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
         path = re.sub(u'^/Volumes','/srv',path)
 
-        #print "looking for file %s in %s" % (os.path.basename(path),os.path.dirname(path))
-
         cursor.execute("select id from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
         result=cursor.fetchone()
 
         if result:
-            #print "got id %s" % result[0]
             return result[0]
         return None
 
@@ -499,16 +478,10 @@ class importer_db:
                 print "Warning: importer_db::files: %s. 'since' argument is ignored." % e
 
         if pathspec:
-            #try:
-                sql_params.append("filepath like '%{path}%'".format(path=pathspec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+            sql_params.append("filepath like '%{path}%'".format(path=pathspec))
 
         if namespec:
-            #try:
-                sql_params.append("filename like '%{name}%'".format(name=namespec))
-            #except Exception as e:
-            #   print "Warning: importer_db::files: %s"
+            sql_params.append("filename like '%{name}%'".format(name=namespec))
 
         sqlcmd="select * from files "
         if len(sql_params) >0:
@@ -534,7 +507,7 @@ class importer_db:
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
@@ -544,7 +517,7 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
 
         if not re.match(u'^\w{2}-\d+',vsid):
@@ -659,7 +632,6 @@ class importer_db:
     def update_prelude_clip_fileref(self,preludeid,fileid):
         cursor=self.conn.cursor()
 
-        print "updating prelude clip %s with id %s" % (preludeid,fileid)
         logging.debug("updating prelude clip %s with id %s" % (preludeid,fileid))
         cursor.execute("update prelude_clips set file_reference=%s where id=%s", (fileid,preludeid))
         cursor.execute("update files set prelude_ref=%s where id=%s", (preludeid,fileid))

@@ -1,0 +1,29 @@
+machine:
+  timezone: Europe/London
+  python:
+    version: 2.6.6
+  environment:
+    PYTHONPATH: ${HOME}/assetsweeper/python_vidi
+  pre:
+    - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev
+
+dependencies:
+  cache_directories:
+    - "/home/ubuntu/virtualenvs/venv-2.6.6"
+
+checkout:
+  post:
+    - git submodule init
+    - git submodule update
+
+database:
+  override:
+    - psql circle_test < src/asset_folder_importer/asset_folder_importer_database.sql
+    - psql circle_test < src/asset_folder_importer/schema_update_1.sql
+
+deployment:
+  master:
+    branch: /.*/
+    commands:
+      - mkdir -p ~/rpmbuild
+      - ./buildrpm.sh
