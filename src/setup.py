@@ -9,7 +9,8 @@ setup(name='asset_folder_importer',
       author_email='andy.gallagher@theguardian.com',
       packages=['asset_folder_importer',
                 'asset_folder_importer.providers',
-                'asset_folder_importer.fix_unattached_media'
+                'asset_folder_importer.fix_unattached_media',
+                'asset_folder_importer.pluto',
                 ],
       package_data={
             'asset_folder_importer': ['metadata_templates/*']

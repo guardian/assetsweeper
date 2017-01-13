@@ -4,15 +4,10 @@ __version__ = '$Rev$ $LastChangedDate$'
 import psycopg2
 import traceback
 import re
-from pprint import pprint
 import platform
 import os
 import datetime as dt
 import logging
-
-
-#useful query:
-#select files.filename,mtime,imported_id,asset_name,prelude_projects.filename,prelude_projects.clips from files left join prelude_clips on (prelude_clips.id=prelude_ref) left join prelude_projects on (prelude_projects.id=prelude_clips.parent_id) where imported_id is not NULL
 
 
 class DataError(StandardError):
@@ -22,8 +17,10 @@ class DataError(StandardError):
 class ArgumentError(StandardError):
     pass
 
+
 class AlreadyLinkedError(StandardError):
     pass
+
 
 class importer_db:
     def __init__(self,clientversion,hostname="localhost",port="5432",username="",password=""):
@@ -510,7 +507,7 @@ class importer_db:
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
@@ -520,7 +517,7 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long):
+        if not isinstance(fileid,long) and not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
 
         if not re.match(u'^\w{2}-\d+',vsid):
