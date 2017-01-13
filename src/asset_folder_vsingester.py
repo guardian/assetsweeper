@@ -56,7 +56,7 @@ def innerMainFunc(cfg,db,limit):
     threads = []
     input_queue = Queue()
     for i in range(0,MAXTHREADS):
-        t = ImporterThread(input_queue,storageid,cfg)
+        t = ImporterThread(input_queue,storageid,cfg,permission_script=PERMISSIONSCRIPT)
         t.start()
         threads.append(t)
 
