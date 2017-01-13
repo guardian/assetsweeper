@@ -45,20 +45,27 @@ On my Mac, I have to prepend the installation path (/opt/local/lib/postgresql91/
 Step two - set up a Virtualenv
 ------------------------------
 
-I would strongly recommend setting up a Python virtual environment to host the installation environment.
-  ```$ sudo pip install virtualenv
-    $ mkdir -p ~/venv/assetimporter
-    $ virtualenv --python=python2.6 ~/venv/assetimporter
-    $ source ~/venv/assetimporter/bin/activate
-    (assetimporter) $
-  ```
+I would strongly recommend setting up a Python virtual environment to host the installation environment (this is not necessary if you're running on a dedicated VM though).
+
+```
+
+$ sudo pip install virtualenv
+$ mkdir -p ~/venv/assetimporter
+$ virtualenv --python=python2.6 ~/venv/assetimporter
+$ source ~/venv/assetimporter/bin/activate
+(assetimporter) $
+```
+  
 Tools like IntelliJ and PyCharm can simplify this process for you, consult their documentation for more details.
 
 Once you have activated the virtual environment, you have a seperate python installation you can use and break
 to your heart's content without damaging anything. And you can always blow it away and reinstall.
 
 Next, install the Python requirements:
-  ``(assetimporter) $ sudo pip install -r requirements.txt``
+
+  ```
+  (assetimporter) $ sudo pip install -r requirements.txt
+  ```
   
 If psycopg2 (the Postgres library) refuses to install, ensure that you have the relevant postgresql-devel or postgres91-dev packages
 installed.  It needs these in order to compile its copy of the C interface library.
