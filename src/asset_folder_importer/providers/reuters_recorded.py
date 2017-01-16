@@ -6,8 +6,8 @@ class Provider(BaseProvider):
         rtn = {}
 
         rtn['gnm_asset_category'] = "Reuters"
-        rtn['gnm_asset_restrictions_apply'] = "Reuters news, covered by bulk deal. Contact Jacqui or Anna"
-        rtn['gnm_asset_restrictions_notes'] = ""
+        rtn['gnm_asset_restrictions_apply'] = "true"
+        rtn['gnm_asset_restrictions_notes'] = "Reuters news, covered by bulk deal. Contact Jacqui or Anna"
         rtn['gnm_mm_provider'] = "Reuters (via octopus tv)"
         rtn['CopyrightandLegalInformation'] = {
             'gnm_copyright_legal_copyright': 'Reuters',
