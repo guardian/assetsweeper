@@ -4,6 +4,11 @@ machine:
     version: 2.6.6
   environment:
     PYTHONPATH: ${HOME}/assetsweeper/python_vidi
+    DB_HOST: localhost
+    DB_PORT: 5432
+    DB_USER: ubuntu
+    DB_PASS:
+    DB_NAME: circle_test
   pre:
     - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev
 
