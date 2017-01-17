@@ -12,6 +12,13 @@ from asset_folder_importer.config import *
 from asset_folder_importer.database import *
 from asset_folder_importer.prelude_importer import *
 import traceback
+import logging
+
+# Configurable parameters
+LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
+main_log_level = logging.DEBUG
+logfile = "/var/log/plutoscripts/prelude_importer.log"
+#End configurable parameters
 
 #Step one. Commandline args.
 parser = OptionParser()
@@ -28,8 +35,14 @@ if options.configfile:
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
 
+if logfile is not None:
+    logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
+else:
+    logging.basicConfig(format=LOGFORMAT, level=main_log_level)
+
 #Now connect to db
 print "Connecting to database on %s" % cfg.value('database_host',noraise=True)
+logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
 db.check_schema_22()
 db.start_run(__scriptname__)
@@ -56,6 +69,7 @@ try:
                     continue
 
                 if name.endswith('.plproj'):
+                    logging.debug("Data going into preludeimporter: dirpath = {0} name = {1}".format(dirpath,name))
                     preludeproject = preludeimporter(db,os.path.join(dirpath,name))
                     preludeproject.dump()
                     #for c in preludeproject.clips():

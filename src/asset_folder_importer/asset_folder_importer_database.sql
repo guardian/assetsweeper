@@ -153,7 +153,7 @@ CREATE TABLE prelude_clips (
     import_date timestamp without time zone,
     project uuid,
     start_time bigint,
-    file_reference integer,
+    file_reference bigint,
     parent_id integer
 );
 
@@ -225,7 +225,7 @@ ALTER SEQUENCE prelude_projects_id_seq OWNED BY prelude_projects.id;
 
 CREATE TABLE sidecar_files (
     id integer NOT NULL,
-    file_ref integer,
+    file_ref bigint,
     sidecar_path text,
     sidecar_name text
 );
