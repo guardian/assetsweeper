@@ -15,11 +15,11 @@ class TestSweeper(unittest.TestCase):
 
         testvar2 = testvar + 1
 
-        #from asset_folder_sweeper import posix_get_mime
+        from asset_folder_importer.asset_folder_sweeper import posix_get_mime
 
-        #filepath = "/etc/hosts"
+        filepath = "/etc/hosts"
 
-        #self.assertEqual(posix_get_mime(filepath),"text/plain")
+        self.assertEqual(posix_get_mime(filepath),"text/plain")
 
     def test_find_files(self):
 
