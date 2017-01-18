@@ -23,14 +23,14 @@ class AlreadyLinkedError(StandardError):
 
 
 class importer_db:
-    def __init__(self,clientversion,hostname="localhost",port="5432",username="",password=""):
+    def __init__(self,clientversion,hostname="localhost",port="5432",username="",password="", dbname="asset_folder_importer"):
         portnum=5432
         try:
             portnum=int(port)
         except Exception:
             pass
 
-        self.conn = psycopg2.connect(database="asset_folder_importer",user=username,password=password,host=hostname,port=portnum)
+        self.conn = psycopg2.connect(database=dbname,user=username,password=password,host=hostname,port=portnum)
         self.clientversion=clientversion
 
         sqlcmd = """create or replace function upsert_file(fp text, fn text) returns INTEGER as
