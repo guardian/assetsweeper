@@ -27,20 +27,11 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(db._has_column('files','hamster'),False)
 
     def test__has_table(self):
-        import sys
-        sys.path.insert(0, '../src/')
+        __version__ = 'database_test'
 
-        from asset_folder_importer.database import importer_db
-        from asset_folder_importer.config import configfile
-
-        cfg=configfile("/etc/asset_folder_importer.cfg")
-
-        __version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
-
-        db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
+        db = importer_db(__version__, hostname=self.dbhost, port=self.dbport, username=self.dbuser,
+                         password=self.dbpass, dbname=self.dbname)
 
         self.assertEqual(db._has_table('system'),True)
-
         self.assertEqual(db._has_table('files'),True)
-
         self.assertEqual(db._has_table('hamster'),False)
