@@ -2,6 +2,7 @@ __author__ = 'dave'
 
 import unittest
 import logging
+from asset_folder_sweeper import posix_get_mime
 
 class TestSweeper(unittest.TestCase):
     def __init__(self,*args,**kwargs):
@@ -10,8 +11,6 @@ class TestSweeper(unittest.TestCase):
 
 
     def test_posix_get_mime(self):
-
-        from asset_folder_sweeper import posix_get_mime
 
         filepath = "/etc/hosts"
 
