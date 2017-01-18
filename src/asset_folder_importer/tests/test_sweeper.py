@@ -11,7 +11,11 @@ class TestSweeper(unittest.TestCase):
 
     def test_posix_get_mime(self):
 
-        from asset_folder_sweeper import posix_get_mime
+        testvar = 1
+
+        testvar2 = testvar + 1
+
+        #from asset_folder_sweeper import posix_get_mime
 
         #filepath = "/etc/hosts"
 
