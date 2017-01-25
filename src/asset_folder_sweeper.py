@@ -18,6 +18,7 @@ from datetime import timedelta
 import datetime
 import time
 import logging
+from asset_folder_importer.asset_folder_sweeper.posix_get_mime import posix_get_mime
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
@@ -25,17 +26,6 @@ main_log_level = logging.DEBUG
 #logfile = None
 logfile = "/var/log/plutoscripts/asset_folder_sweeper.log"
 #End configurable parameters
-
-def posix_get_mime(filepath):
-    try:
-        (out, err) = subprocess.Popen(['/usr/bin/file','-b','--mime-type',filepath],stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-        if out:
-            return out.rstrip('\n')
-        return None
-    except Exception as e:
-        print "Error using /usr/bin/file to get MIME type: %s" % e.message
-        db.insert_sysparam("warning","Error using /usr/bin/file to get MIME type: %s" % e.message)
-        return None
 
 def find_files(cfg):
     #Step three. Find all relevant files and bung 'em in the database
@@ -86,7 +76,7 @@ def find_files(cfg):
                     db.insert_sysparam("warning",e.message)
 
                 if mt is None or mt == 'None':
-                    mt = posix_get_mime(fullpath)
+                    mt = posix_get_mime(fullpath,db)
 
                 db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
 
