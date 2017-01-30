@@ -66,7 +66,7 @@ def find_files(cfg,db):
             fullpath = os.path.join(dirpath,name)
             logger.debug("Attempting to add file at path: '%s'" % fullpath)
             try:
-                statinfo, mt = check_mime(fullpath)
+                statinfo, mt = check_mime(fullpath,db)
 
                 #statinfo = os.stat(fullpath)
                 #pprint(statinfo)
