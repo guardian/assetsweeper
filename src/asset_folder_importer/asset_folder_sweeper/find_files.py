@@ -50,7 +50,7 @@ def find_files(cfg,db):
                     shouldIgnore = True
 
             fullpath = os.path.join(dirpath,name)
-            print fullpath
+            logger.debug("Attempting to add file at path: '%s'" % fullpath)
             try:
                 statinfo = os.stat(fullpath)
                 pprint(statinfo)
