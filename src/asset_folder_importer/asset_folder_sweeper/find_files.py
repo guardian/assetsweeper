@@ -6,6 +6,14 @@ from asset_folder_importer.asset_folder_sweeper.posix_get_mime import posix_get_
 import re
 logger = logging.getLogger(__name__)
 
+def re_should_ignore(pathShouldIgnore):
+
+    reShouldIgnore = []
+    for expr in pathShouldIgnore:
+        reShouldIgnore.append(re.compile(expr))
+
+    return reShouldIgnore
+
 def find_files(cfg,db):
     #Step three. Find all relevant files and bung 'em in the database
     startpath = cfg.value('start_path',noraise=False)
@@ -25,9 +33,7 @@ def find_files(cfg,db):
         '_synctemp', #this is created by PluralEyes
     ]
 
-    reShouldIgnore = []
-    for expr in pathShouldIgnore:
-        reShouldIgnore.append(re.compile(expr))
+    reShouldIgnore = re_should_ignore(pathShouldIgnore)
 
     #try:
     n=0
