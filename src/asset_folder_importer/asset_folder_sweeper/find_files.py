@@ -3,6 +3,7 @@ from pprint import pprint
 import logging
 import mimetypes
 from asset_folder_importer.asset_folder_sweeper.posix_get_mime import posix_get_mime
+import re
 
 def find_files(cfg,db):
     #Step three. Find all relevant files and bung 'em in the database
