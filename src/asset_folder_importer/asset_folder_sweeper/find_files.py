@@ -14,6 +14,20 @@ def re_should_ignore(pathShouldIgnore):
 
     return reShouldIgnore
 
+def check_mime(fullpath,db):
+    statinfo = os.stat(fullpath)
+    pprint(statinfo)
+    mt = None
+    try:
+        (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
+    except Exception as e:
+        db.insert_sysparam("warning", e.message)
+
+    if mt is None or mt == 'None':
+        mt = posix_get_mime(fullpath, db)
+
+    return statinfo, mt
+
 def find_files(cfg,db):
     #Step three. Find all relevant files and bung 'em in the database
     startpath = cfg.value('start_path',noraise=False)
@@ -52,16 +66,18 @@ def find_files(cfg,db):
             fullpath = os.path.join(dirpath,name)
             logger.debug("Attempting to add file at path: '%s'" % fullpath)
             try:
-                statinfo = os.stat(fullpath)
-                pprint(statinfo)
-                mt = None
-                try:
-                    (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
-                except Exception as e:
-                    db.insert_sysparam("warning",e.message)
+                statinfo, mt = check_mime(fullpath)
 
-                if mt is None or mt == 'None':
-                    mt = posix_get_mime(fullpath,db)
+                #statinfo = os.stat(fullpath)
+                #pprint(statinfo)
+                #mt = None
+                #try:
+                #    (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
+                #except Exception as e:
+                #    db.insert_sysparam("warning",e.message)
+                #
+                #if mt is None or mt == 'None':
+                #    mt = posix_get_mime(fullpath,db)
 
                 db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
 
