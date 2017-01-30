@@ -4,12 +4,13 @@ import logging
 import mimetypes
 from asset_folder_importer.asset_folder_sweeper.posix_get_mime import posix_get_mime
 import re
+logger = logging.getLogger(__name__)
 
 def find_files(cfg,db):
     #Step three. Find all relevant files and bung 'em in the database
     startpath = cfg.value('start_path',noraise=False)
 
-    print "Running from '%s'" % startpath
+    logger.info("Running from '%s'" % startpath)
 
     #mark a file as to be ignored, if any of these regexes match. This will prevent vsingester from importing it.
     pathShouldIgnore = [
