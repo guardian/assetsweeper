@@ -24,3 +24,4 @@ class TestCheckMime(unittest.TestCase):
         (statinfo, mimetype) = check_mime(filepath, db)
 
         self.assertEqual(mimetype, "text/plain")
+        self.assertNotEqual(statinfo, None)
