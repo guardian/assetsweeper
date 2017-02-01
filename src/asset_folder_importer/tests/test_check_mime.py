@@ -19,10 +19,8 @@ class TestCheckMime(unittest.TestCase):
         db = importer_db(__version__,hostname=self.dbhost,port=self.dbport,username=self.dbuser,
                          password=self.dbpass,dbname=self.dbname)
 
-        #test_list = IgnoreList()
-
-        #self.assertTrue(test_list.should_ignore("/path/to/some/Adobe Premiere Pro Preview Files/subpath","yadayadayada.xxx"))
-
         filepath = "/etc/hosts"
 
-        self.assertEqual(check_mime(filepath,db),"text/plain")
+        (statinfo, mimetype) = check_mime(filepath, db)
+
+        self.assertEqual(mimetype, "text/plain")
