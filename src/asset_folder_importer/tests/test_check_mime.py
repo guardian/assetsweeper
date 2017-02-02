@@ -26,7 +26,7 @@ class TestCheckMime(unittest.TestCase):
         self.assertEqual(mimetype, "text/plain")
         self.assertNotEqual(statinfo, None)
 
-        filepath = "/usr/lib64/python2.6/site-packages/asset_folder_importer/tests/1.jpeg"
+        filepath = "/home/ubuntu/assetsweeper/src/asset_folder_importer/tests/1.jpeg"
 
         (statinfo, mimetype) = check_mime(filepath, db)
 
