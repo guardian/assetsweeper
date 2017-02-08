@@ -14,6 +14,7 @@ class TestIgnoreList(unittest.TestCase):
         self.assertTrue(test_list.should_ignore("/path/to/some/assets","Mic_01.pk"))
         self.assertTrue(test_list.should_ignore("/path/to/some/assets","."))
         self.assertTrue(test_list.should_ignore("/path/to/some/assets",".hiddenfile"))
+        self.assertTrue(test_list.should_ignore("/path/to/some/assets","Mic01_1.pek"))
 
     def test_should_not_match(self):
         from asset_folder_importer.asset_folder_sweeper.ignore_list import IgnoreList
@@ -24,3 +25,4 @@ class TestIgnoreList(unittest.TestCase):
         self.assertFalse(test_list.should_ignore("/path/to/some/assets","Mic_01.pk.wav"))
         self.assertFalse(test_list.should_ignore("/path/to/some/assets","something containing PFR.ext"))
         self.assertFalse(test_list.should_ignore("/path/to/some/assets","pkarnia.mxf"))
+        self.assertFalse(test_list.should_ignore("/path/to/some/assets","wood.pekker.mxf"))
