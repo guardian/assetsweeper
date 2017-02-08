@@ -16,6 +16,7 @@ class IgnoreList(object):
         '\.PFL$',
         '\.PFR$',   #Cubase creates these filetypes
         '\.peak$',
+        '\.pek$',
         '_synctemp', #this is created by PluralEyes
     ]
 
