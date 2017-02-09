@@ -78,6 +78,35 @@ class ThreadPool(object):
     def _safe_thread_list_remove(self,t):
         self._thread_list.remove(t)
         
+    def prune(self):
+        """
+        checks to see if any threads are dead and removes them from our list if they are
+        :return: number of threads pruned
+        """
+        dead_threads = filter(lambda t: not t.isAlive(), self._thread_list)
+        for dead in dead_threads:
+            self._thread_list.remove(dead)
+            
+        return len(dead_threads)
+    
+    @property
+    def active_threads(self):
+        """
+        returns the number of threads that are active, i.e. for whom isAlive() is true
+        :return: number of threads
+        """
+        return len(filter(lambda t: t.isAlive(), self._thread_list))
+    
+    @property
+    def known_threads(self):
+        """
+        returns the number of threads that we believe are being managed.
+        to get an accurate assessment, you should call prune() before calling this to remove references
+        to any crashed threads
+        :return: number of threads in our list
+        """
+        return len(self._thread_list)
+    
     def scale_down(self, timeout):
         self.queue.put((0, None, )) #make this top priority.
         
