@@ -5,11 +5,8 @@ __scriptname__ = 'asset_folder_verify_files'
 
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
-from pprint import pprint
 from optparse import OptionParser
 import traceback
-import mimetypes
-import subprocess
 from pprint import pprint
 import os.path
 import re
@@ -17,8 +14,8 @@ import re
 #START MAIN
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
 main_log_level = logging.DEBUG
-#logfile = "/var/log/plutoscripts/verify_files.log"
-logfile = None
+logfile = "/var/log/plutoscripts/verify_files.log"
+#logfile = None
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
@@ -74,7 +71,7 @@ try:
             files_existing += 1
             continue
 
-        #logging.info("File {0} does not exist".format(filepath))
+        logging.info("File {0} does not exist".format(filepath))
         files_nonexisting += 1
         db.mark_id_as_deleted(fileref['id'])
         #pprint(fileref)
@@ -82,7 +79,7 @@ try:
     logging.info("Found {0} files existing and {1} files missing".format(files_existing,files_nonexisting))
     db.insert_sysparam("existing_files",files_existing)
     db.insert_sysparam("missing_files",files_nonexisting)
-
+    db.insert_sysparam("exit", "success")
     db.end_run(status=None)
 
 except Exception as e:
