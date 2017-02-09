@@ -411,7 +411,9 @@ class importer_db:
                 id=id
             ))
         self.conn.commit()
-
+        return id
+    
+    
     def fileRecord(self,path):
         cursor=self.conn.cursor()
 
