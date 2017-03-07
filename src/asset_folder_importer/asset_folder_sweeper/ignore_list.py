@@ -38,7 +38,7 @@ class IgnoreList(object):
         """
         for expr in self.reShouldIgnore:
             if expr.search(dirname) is not None:
-                return filename
+                return True
             if expr.search(filename) is not None:
                 return True
         return False
