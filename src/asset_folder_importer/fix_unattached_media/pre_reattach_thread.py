@@ -2,6 +2,7 @@ from threading import Thread
 from gnmvidispine.vs_collection import VSCollection
 from gnmvidispine.vs_item import VSItem
 from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
+from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
 import logging
 import re
 from exceptions import *
@@ -9,7 +10,7 @@ from exceptions import *
 
 class PreReattachThread(Thread):
     def __init__(self, input_queue, output_queue=None, options=None, config=None, raven_client=None, timeout=500,
-                 logger=None, should_raise=False,
+                 logger=None, pluto_lookup=None, should_raise=False,
                  *args, **kwargs):
         super(PreReattachThread, self).__init__(*args, **kwargs)
         self._inq = input_queue
@@ -24,6 +25,8 @@ class PreReattachThread(Thread):
         self.local_cache = {}
         self.invalid_paths = []
         self.not_found = []
+        self.pluto_lookup = DirectPlutoLookup(host=self.config.value('pluto_host'), port=self.config.value('pluto_port'),
+                            user=self.config.value('vs_user'), password=self.config.value('vs_password')) if pluto_lookup is None else pluto_lookup
         self.totals = {
             'unattached': 0
         }
@@ -39,7 +42,7 @@ class PreReattachThread(Thread):
         self.local_cache[cache_key] = result
         return result
     
-    def process(self, item_id, filepath):
+    def bruteforce_lookup(self, item_id, filepath):
         logger = logging.getLogger("attempt_reattach")
         logger.level = logging.DEBUG
     
@@ -66,8 +69,23 @@ class PreReattachThread(Thread):
             if collection_id is None:
                 raise NoCollectionFound(filepath)
     
-        logger.info("Got collection id {0}".format(collection_id))
+        return collection_id
     
+    def process(self, item_id, filepath):
+        self.logger.info("attempt_reattach - {0} -> {1}".format(item_id, filepath))
+    
+        if not filepath.startswith('/srv/Multimedia2/Media Production/Assets'):
+            raise InvalidLocation("{0} is not an asset folder".format(filepath))
+    
+        pathparts = filepath.split('/')
+        
+        collection_id = self.pluto_lookup.lookup("/".join(pathparts[0:8]))
+        
+        if collection_id is None:
+            self.logger.warning("No record found for {0} in Pluto".format("/".join(pathparts[0:8])))
+            collection_id = self.bruteforce_lookup(item_id, filepath)
+            
+        self.logger.info("Got collection id {0}".format(collection_id))
         self._outq.put({'itemid': item_id, 'collectionid': collection_id}, priority=10)
     
     def run(self):

@@ -25,7 +25,7 @@ logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName
 logger = logging.getLogger(__name__)
 logger.level = logging.DEBUG
 
-THREADS = 1
+THREADS = 5
 
 #START MAIN
 invalid_paths = []
@@ -109,6 +109,7 @@ try:
                 totals[c] += float(row[1])/(1024.0**2)
         
     logger.info("Waiting for threads to terminate")
+    pre_pool.safe_terminate()
     reattach_pool.safe_terminate()
     
     print "------------------------------------------------\n\n"
