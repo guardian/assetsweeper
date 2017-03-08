@@ -1,9 +1,14 @@
 from urllib3.exceptions import ReadTimeoutError
 from elasticsearch.exceptions import ConnectionTimeout
 from collection_lookup import CollectionLookup
+from gnmvidispine.vs_item import VSItem,VSNotFound
 from exceptions import *
 import logging
 import re
+from time import sleep
+
+logger = logging.getLogger(__name__)
+logger.level=logging.DEBUG
 
 id_xplodr = re.compile(r'^(?P<site>\w{2})-(?P<numeric>\d+)')
 local_cache = {}
@@ -91,3 +96,25 @@ def lookup_portal_item(esclient, item_id):
     if not 'f___collection_str' in hits[0]['_source']:
         return None
     return hits[0]['_source']['f___collection_str']  # this is an array
+
+
+def lookup_vidispine_item(credentials, item_id):
+    """
+    Look up the containing collection in Vidispine, if the search in the Portal index fails
+    :param credentials: dictionary of Vidipsine credentials
+    :param item_id: item ID to look up
+    :return: String of the collection ID, or None if no collection was found.
+    """
+    i = VSItem(host=credentials['host'],port=int(credentials['port']),user=credentials['user'],
+               passwd=credentials['password'])
+    
+    try:
+        i.populate(item_id, specificFields=['title'])
+    except VSNotFound:
+        logger.error("Item {0} was not found in Vidispine".format(item_id))
+        return None
+    containers = i.get('__collection',allowArray=True)
+    if not isinstance(containers,list):
+        return [containers]
+    else:
+        return containers

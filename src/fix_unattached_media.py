@@ -17,7 +17,7 @@ raven_client = raven.Client('https://bd4329a849e2434c9fde4b5c392b386d:64f6281adc
 
 path_map = None
 
-logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s',
+logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
                     level=logging.ERROR,
                     filename='/var/log/plutoscripts/fix_unattached_media.log')
 
@@ -86,7 +86,9 @@ try:
             collections = lookup_portal_item(esclient,row[0])
         except PortalItemNotFound:
             logger.warning("Portal item {0} was not found in the index".format(row[0]))
-            continue
+            collections = lookup_vidispine_item(vscredentials, row[0])
+            if collections is None:
+                continue
         if collections is None:
             try:
                 attempt_reattach(pool,row[0],row[2], vscredentials)
