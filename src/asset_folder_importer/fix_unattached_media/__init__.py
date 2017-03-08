@@ -11,49 +11,6 @@ logger = logging.getLogger(__name__)
 logger.level=logging.DEBUG
 
 id_xplodr = re.compile(r'^(?P<site>\w{2})-(?P<numeric>\d+)')
-local_cache = {}
-
-def find_collection_id(workgroup, commission, user_project, credentials):
-    cache_key = ":".join((workgroup, commission, user_project,))
-    if cache_key in local_cache:
-        return local_cache[cache_key]
-    
-    l = CollectionLookup("x", credentials['host'], int(credentials['port']), credentials['user'], credentials['password'])
-    result = l.find_in_vs({'project': user_project})
-    local_cache[cache_key] = result
-    return result
-
-
-def attempt_reattach(pool, item_id, filepath, credentials):
-    logger = logging.getLogger("attempt_reattach")
-    logger.level = logging.DEBUG
-    
-    logger.info("attempt_reattach - {0} -> {1}".format(item_id, filepath))
-    
-    if not filepath.startswith('/srv/Multimedia2/Media Production/Assets'):
-        raise InvalidLocation("{0} is not an asset folder".format(filepath))
-    
-    pathparts = filepath.split('/')
-    try:
-        workgroup = pathparts[5]
-        commission = pathparts[6]
-        user_project = pathparts[7]
-    except IndexError:
-        raise InvalidProjectError(filepath)
-    
-    logger.info("workgroup: {0} commission: {1} user_project: {2}".format(workgroup, commission, user_project))
-    
-    collection_id = find_collection_id(workgroup, commission, user_project, credentials)
-    add_apostrophe = re.compile(r'_s')
-    
-    if collection_id is None:
-        collection_id = find_collection_id(workgroup, commission, add_apostrophe.sub("'s", user_project), credentials)
-        if collection_id is None:
-            raise NoCollectionFound(filepath)
-    
-    logger.info("Got collection id {0}".format(collection_id))
-    
-    pool.put_queue({'itemid': item_id, 'collectionid': collection_id}, priority=10)
 
 
 def lookup_portal_item(esclient, item_id):

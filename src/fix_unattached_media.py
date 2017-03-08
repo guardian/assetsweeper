@@ -10,6 +10,7 @@ from asset_folder_importer.fix_unattached_media.exceptions import *
 from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
 from asset_folder_importer.config import configfile
 from asset_folder_importer.fix_unattached_media.reattach_thread import ReattachThread
+from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreReattachThread
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
@@ -24,7 +25,7 @@ logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName
 logger = logging.getLogger(__name__)
 logger.level = logging.DEBUG
 
-THREADS = 3
+THREADS = 1
 
 #START MAIN
 invalid_paths = []
@@ -42,11 +43,14 @@ try:
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
     (options, args) = parser.parse_args()
 
-    pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,
-                      raven_client=raven_client)
-
     cfg = configfile(options.configfile)
-        
+     
+    reattach_pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,config=cfg,
+                               raven_client=raven_client)
+
+    pre_pool = ThreadPool(PreReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options, config=cfg,
+                          output_queue=reattach_pool.queue)
+    
     esclient = elasticsearch.Elasticsearch(cfg.value('portal_elastic_host'), timeout=120)
 
     conn = psycopg2.connect(database="asset_folder_importer", user=cfg.value('database_user'),
@@ -87,24 +91,15 @@ try:
         except PortalItemNotFound:
             logger.warning("Portal item {0} was not found in the index".format(row[0]))
             collections = lookup_vidispine_item(vscredentials, row[0])
-            if collections is None:
-                continue
         if collections is None:
-            try:
-                attempt_reattach(pool,row[0],row[2], vscredentials)
-                totals['reattached'] += float(row[1])/(1024.0**2)
-                processed +=1
-            except InvalidProjectError as e:
-                logger.error(str(e))
-                logger.error("Attempting reattach of {0}".format(row[2]))
-                if not row[2] in invalid_paths:
-                    invalid_paths.append(row[2])
-                    
-                totals['unattached'] += float(row[1])/(1024.0**2)
-            except NoCollectionFound as e:
-                logger.error("Unable to find a collection for {0}".format(row[2]))
-                if not row[2] in not_found:
-                    not_found.append(row[2])
+            #attempt_reattach(reattach_pool, row[0], row[2], vscredentials)
+            pre_pool.put_queue({
+                'item_id': row[0],
+                'size': row[1],
+                'filepath': row[2]
+            })
+            totals['reattached'] += float(row[1])/(1024.0**2)
+            processed +=1
                 
             continue
         for c in collections:
@@ -114,7 +109,7 @@ try:
                 totals[c] += float(row[1])/(1024.0**2)
         
     logger.info("Waiting for threads to terminate")
-    pool.safe_terminate()
+    reattach_pool.safe_terminate()
     
     print "------------------------------------------------\n\n"
     
@@ -130,7 +125,8 @@ except Exception:
     raven_client.captureException()
     
     #ensure that all enqueud actions have completed before terminating
-    pool.safe_terminate()
+    pre_pool.safe_terminate()
+    reattach_pool.safe_terminate()
 
     print "------------------------------------------------\n\n"
 

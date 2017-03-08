@@ -10,18 +10,20 @@ class ReattachThread(Thread):
     It links them, and also propagates media management flags from parent to child
     """
     
-    def __init__(self, input_queue, options=None, raven_client=None, timeout=500, logger=None, should_raise=False, *args, **kwargs):
+    def __init__(self, input_queue, options=None, config=None, raven_client=None, timeout=500, logger=None, should_raise=False, *args, **kwargs):
         super(ReattachThread, self).__init__(*args, **kwargs)
         self._inq = input_queue
         self.logger = logging.getLogger("ReattachThread") if logger==None else logger
         self.logger.level = logging.DEBUG
         self.options = options
+        self.config = config
         self.raven_client = raven_client
         self.timeout=timeout
         self.should_raise = should_raise
         
     def reattach(self, itemid, collectionid):
-        coll = VSCollection(host=self.options.vshost, port=self.options.vsport, user=self.options.vsuser, passwd=self.options.vspass)
+        coll = VSCollection(host=self.config.value('vs_host'), port=self.config.value('vs_port'),
+                            user=self.config.value('vs_user'), passwd=self.config.value('vs_password'))
         coll.name = collectionid
         coll.addToCollection(itemid, type="item")
         self.logger.info("Attached item {0} to {1}".format(itemid, collectionid))
