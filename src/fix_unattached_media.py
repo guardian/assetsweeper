@@ -8,6 +8,7 @@ from pprint import pprint
 import raven
 from asset_folder_importer.fix_unattached_media.exceptions import *
 from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
+from asset_folder_importer.config import configfile
 from asset_folder_importer.fix_unattached_media.reattach_thread import ReattachThread
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
@@ -16,7 +17,9 @@ raven_client = raven.Client('https://bd4329a849e2434c9fde4b5c392b386d:64f6281adc
 
 path_map = None
 
-logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s',level=logging.ERROR)
+logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s',
+                    level=logging.ERROR,
+                    filename='/var/log/plutoscripts/fix_unattached_media.log')
 
 logger = logging.getLogger(__name__)
 logger.level = logging.DEBUG
@@ -34,26 +37,29 @@ totals = {
 
 try:
     parser = OptionParser()
-    parser.add_option("--host", dest="dbhost", help="host to access database on", default="localhost")
-    parser.add_option("-u", "--user", dest="dbuser", help="user to access database as", default="assetimporter")
-    parser.add_option("-w","--passwd", dest="dbpasswd", help="password for database user")
-    parser.add_option("-c","--credentials", dest="configfile", help="credentials file. Over-rides commandline options for host, port etc. if you want to use it.")
-    parser.add_option("-e", "--elasticsearch", dest="eshost", help="host to contact Elastic Search")
-    parser.add_option("--vidispine", dest="vshost", help="host to access vidispine on", default="localhost")
-    parser.add_option("--vport", dest="vsport", help="port to access vidispine on", default=8080)
-    parser.add_option("--vuser", dest="vsuser", help="user to access vidispine with", default="admin")
-    parser.add_option("--vpass", dest="vspass", help="password to access vidispine with")
+    parser.add_option("-c","--credentials", dest="configfile",
+                      help="path to assetimporter config", default="/etc/asset_folder_importer.cfg")
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
     (options, args) = parser.parse_args()
 
     pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,
                       raven_client=raven_client)
-    
-    esclient = elasticsearch.Elasticsearch(options.eshost, timeout=120)
 
-    conn = psycopg2.connect(database="asset_folder_importer", user=options.dbuser, password=options.dbpasswd, host=options.dbhost,
+    cfg = configfile(options.configfile)
+        
+    esclient = elasticsearch.Elasticsearch(cfg.value('portal_elastic_host'), timeout=120)
+
+    conn = psycopg2.connect(database="asset_folder_importer", user=cfg.value('database_user'),
+                            password=cfg.value('database_password'), host=cfg.value('database_host'),
                             port=5432)
 
+    vscredentials = {
+        'host': cfg.value('vs_host'),
+        'port': cfg.value('vs_port'),
+        'user': cfg.value('vs_user'),
+        'password': cfg.value('vs_password')
+    }
+    
     cursor = conn.cursor()
     try:
         limit = int(options.limit)
@@ -63,11 +69,6 @@ try:
         limit = None
         
     cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL")
-    
-    # for n in range(0,THREADS):
-    #     t = ReattachThread(reattach_queue,options=options,raven_client=raven_client)
-    #     t.start()
-    #     reattach_threads.append(t)
 
     counter = 0
     processed = 0
@@ -88,7 +89,7 @@ try:
             continue
         if collections is None:
             try:
-                attempt_reattach(pool,row[0],row[2])
+                attempt_reattach(pool,row[0],row[2], vscredentials)
                 totals['reattached'] += float(row[1])/(1024.0**2)
                 processed +=1
             except InvalidProjectError as e:

@@ -8,18 +8,18 @@ import re
 id_xplodr = re.compile(r'^(?P<site>\w{2})-(?P<numeric>\d+)')
 local_cache = {}
 
-def find_collection_id(workgroup, commission, user_project, options):
+def find_collection_id(workgroup, commission, user_project, credentials):
     cache_key = ":".join((workgroup, commission, user_project,))
     if cache_key in local_cache:
         return local_cache[cache_key]
     
-    l = CollectionLookup("x", options.vshost, int(options.vsport), options.vsuser, options.vspass)
+    l = CollectionLookup("x", credentials['host'], int(credentials['port']), credentials['user'], credentials['password'])
     result = l.find_in_vs({'project': user_project})
     local_cache[cache_key] = result
     return result
 
 
-def attempt_reattach(pool, item_id, filepath):
+def attempt_reattach(pool, item_id, filepath, credentials):
     logger = logging.getLogger("attempt_reattach")
     logger.level = logging.DEBUG
     
@@ -38,11 +38,11 @@ def attempt_reattach(pool, item_id, filepath):
     
     logger.info("workgroup: {0} commission: {1} user_project: {2}".format(workgroup, commission, user_project))
     
-    collection_id = find_collection_id(workgroup, commission, user_project)
+    collection_id = find_collection_id(workgroup, commission, user_project, credentials)
     add_apostrophe = re.compile(r'_s')
     
     if collection_id is None:
-        collection_id = find_collection_id(workgroup, commission, add_apostrophe.sub("'s", user_project))
+        collection_id = find_collection_id(workgroup, commission, add_apostrophe.sub("'s", user_project), credentials)
         if collection_id is None:
             raise NoCollectionFound(filepath)
     
