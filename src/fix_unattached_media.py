@@ -8,7 +8,9 @@ from pprint import pprint
 import raven
 from asset_folder_importer.fix_unattached_media.exceptions import *
 from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
+from asset_folder_importer.config import configfile
 from asset_folder_importer.fix_unattached_media.reattach_thread import ReattachThread
+from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreReattachThread
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
@@ -16,12 +18,14 @@ raven_client = raven.Client('https://bd4329a849e2434c9fde4b5c392b386d:64f6281adc
 
 path_map = None
 
-logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s',level=logging.ERROR)
+logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
+                    level=logging.ERROR,
+                    filename='/var/log/plutoscripts/fix_unattached_media.log')
 
 logger = logging.getLogger(__name__)
 logger.level = logging.DEBUG
 
-THREADS = 3
+THREADS = 5
 
 #START MAIN
 invalid_paths = []
@@ -34,26 +38,32 @@ totals = {
 
 try:
     parser = OptionParser()
-    parser.add_option("--host", dest="dbhost", help="host to access database on", default="localhost")
-    parser.add_option("-u", "--user", dest="dbuser", help="user to access database as", default="assetimporter")
-    parser.add_option("-w","--passwd", dest="dbpasswd", help="password for database user")
-    parser.add_option("-c","--credentials", dest="configfile", help="credentials file. Over-rides commandline options for host, port etc. if you want to use it.")
-    parser.add_option("-e", "--elasticsearch", dest="eshost", help="host to contact Elastic Search")
-    parser.add_option("--vidispine", dest="vshost", help="host to access vidispine on", default="localhost")
-    parser.add_option("--vport", dest="vsport", help="port to access vidispine on", default=8080)
-    parser.add_option("--vuser", dest="vsuser", help="user to access vidispine with", default="admin")
-    parser.add_option("--vpass", dest="vspass", help="password to access vidispine with")
+    parser.add_option("-c","--credentials", dest="configfile",
+                      help="path to assetimporter config", default="/etc/asset_folder_importer.cfg")
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
     (options, args) = parser.parse_args()
 
-    pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,
-                      raven_client=raven_client)
-    
-    esclient = elasticsearch.Elasticsearch(options.eshost, timeout=120)
+    cfg = configfile(options.configfile)
+     
+    reattach_pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,config=cfg,
+                               raven_client=raven_client)
 
-    conn = psycopg2.connect(database="asset_folder_importer", user=options.dbuser, password=options.dbpasswd, host=options.dbhost,
+    pre_pool = ThreadPool(PreReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options, config=cfg,
+                          output_queue=reattach_pool.queue)
+    
+    esclient = elasticsearch.Elasticsearch(cfg.value('portal_elastic_host'), timeout=120)
+
+    conn = psycopg2.connect(database="asset_folder_importer", user=cfg.value('database_user'),
+                            password=cfg.value('database_password'), host=cfg.value('database_host'),
                             port=5432)
 
+    vscredentials = {
+        'host': cfg.value('vs_host'),
+        'port': cfg.value('vs_port'),
+        'user': cfg.value('vs_user'),
+        'password': cfg.value('vs_password')
+    }
+    
     cursor = conn.cursor()
     try:
         limit = int(options.limit)
@@ -63,11 +73,6 @@ try:
         limit = None
         
     cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL")
-    
-    # for n in range(0,THREADS):
-    #     t = ReattachThread(reattach_queue,options=options,raven_client=raven_client)
-    #     t.start()
-    #     reattach_threads.append(t)
 
     counter = 0
     processed = 0
@@ -85,23 +90,16 @@ try:
             collections = lookup_portal_item(esclient,row[0])
         except PortalItemNotFound:
             logger.warning("Portal item {0} was not found in the index".format(row[0]))
-            continue
+            collections = lookup_vidispine_item(vscredentials, row[0])
         if collections is None:
-            try:
-                attempt_reattach(pool,row[0],row[2])
-                totals['reattached'] += float(row[1])/(1024.0**2)
-                processed +=1
-            except InvalidProjectError as e:
-                logger.error(str(e))
-                logger.error("Attempting reattach of {0}".format(row[2]))
-                if not row[2] in invalid_paths:
-                    invalid_paths.append(row[2])
-                    
-                totals['unattached'] += float(row[1])/(1024.0**2)
-            except NoCollectionFound as e:
-                logger.error("Unable to find a collection for {0}".format(row[2]))
-                if not row[2] in not_found:
-                    not_found.append(row[2])
+            #attempt_reattach(reattach_pool, row[0], row[2], vscredentials)
+            pre_pool.put_queue({
+                'item_id': row[0],
+                'size': row[1],
+                'filepath': row[2]
+            })
+            totals['reattached'] += float(row[1])/(1024.0**2)
+            processed +=1
                 
             continue
         for c in collections:
@@ -111,7 +109,8 @@ try:
                 totals[c] += float(row[1])/(1024.0**2)
         
     logger.info("Waiting for threads to terminate")
-    pool.safe_terminate()
+    pre_pool.safe_terminate()
+    reattach_pool.safe_terminate()
     
     print "------------------------------------------------\n\n"
     
@@ -127,7 +126,8 @@ except Exception:
     raven_client.captureException()
     
     #ensure that all enqueud actions have completed before terminating
-    pool.safe_terminate()
+    pre_pool.safe_terminate()
+    reattach_pool.safe_terminate()
 
     print "------------------------------------------------\n\n"
 

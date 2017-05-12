@@ -44,7 +44,8 @@ class CollectionLookup(object):
         title_munger = re.compile(r'[^\w\d]+')
         # titles = map(lambda x: x.get('title'), result.results(shouldPopulate=True))
         
-        for item in result.results(shouldPopulate=True):
+        for item in result.results(shouldPopulate=False):
+            item.populate(item.name,specificFields='title')
             to_match = title_munger.sub('_', item.get('title'))
             self._logger.debug("matching {0} against {1}".format(to_match, wanted_title))
             if to_match == wanted_title:
@@ -53,12 +54,17 @@ class CollectionLookup(object):
         self._logger.debug("nothing matched")
         return None
     
-    def find_in_vs(self, listdata):
-        if not isinstance(listdata, dict): raise KeyError
+    def find_in_vs(self, projectinfo):
+        """
+        Tries to locate the project with the given user/projectname in Vidispine.
+        :param projectinfo: dictionary of project information. Currently expects one key, 'project'.
+        :return: None if the project was not found, or the project ID if it was
+        """
+        if not isinstance(projectinfo, dict): raise KeyError
         
         s = VSCollectionSearch(host=self._host, port=self._port, user=self._user, passwd=self._pass)
         
-        projectparts = listdata['project'].split('_')
+        projectparts = projectinfo['project'].split('_')
         if projectparts[0] == 'videoproducer1' or projectparts[0] == 'audioproducer1' or projectparts[0] == 'localhome':
             project_index = 1
         else:
@@ -83,7 +89,7 @@ class CollectionLookup(object):
             self._logger.error("{0}. Searching for {1}".format(str(e), search_title))
             raise
         
-        self._logger.info("Returned {0} hits for {1} on exact".format(result.totalItems, listdata['project']))
+        self._logger.info("Returned {0} hits for {1} on exact".format(result.totalItems, projectinfo['project']))
         
         if (result.totalItems == 1):
             for r in result.results(shouldPopulate=False):
@@ -94,7 +100,7 @@ class CollectionLookup(object):
             s.addCriterion({'title': "{0}".format(search_title)})
             s.addCriterion({'gnm_type': 'Project'})
             result = s.execute()
-            self._logger.info("Returned {0} hits for {1} on inexact".format(result.totalItems, listdata['project']))
+            self._logger.info("Returned {0} hits for {1} on inexact".format(result.totalItems, projectinfo['project']))
             if (result.totalItems == 1):
                 for r in result.results(shouldPopulate=False):
                     return r.name
