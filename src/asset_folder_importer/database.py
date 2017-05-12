@@ -90,10 +90,26 @@ class importer_db:
     def update_schema_21(self):
         cursor = self.conn.cursor()
         sqlcmd = """
-        ALTER TABLE edit_projects ADD COLUMN valid boolean,
-            ADD COLUMN problem text,
-            ADD COLUMN problem_detail text;
-        """
+        CREATE TABLE edit_projects (
+    id integer NOT NULL,
+    type integer NOT NULL,
+    filepath text NOT NULL,
+    filename text NOT NULL,
+    uuid uuid,
+    version text,
+    clips integer,
+    lastseen timestamp with time zone,
+    valid boolean,
+    problem text,
+    problem_detail text
+);
+        ALTER TABLE ONLY edit_projects
+    ADD CONSTRAINT edit_projects_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY edit_projects
+    ADD CONSTRAINT edit_projects_unique_filepath UNIQUE (filepath, filename);
+    ALTER TABLE ONLY edit_projects
+    ADD CONSTRAINT edit_project_type_fkey FOREIGN KEY (type) REFERENCES edit_project_types(id);
+    """
         cursor.execute(sqlcmd)
         #self.conn.commit()
 
