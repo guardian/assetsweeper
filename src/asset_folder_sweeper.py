@@ -1,10 +1,4 @@
 #!/usr/bin/python
-#REquires: python-psycopg2.x86_64
-
-__author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
-__version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
-__scriptname__ = 'asset_folder_sweeper'
-
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
 from pprint import pprint
@@ -16,6 +10,9 @@ import time
 import logging
 from asset_folder_importer.asset_folder_sweeper.find_files import find_files
 
+__author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
+__version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
+__scriptname__ = 'asset_folder_sweeper'
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
 main_log_level = logging.DEBUG
