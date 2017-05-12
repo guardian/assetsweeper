@@ -46,8 +46,6 @@ class TestDirectPlutoLookup(unittest.TestCase):
         result = l.lookup('/path/to/something/')
         conn.request.assert_called_once()
         conn.getresponse.assert_called_once()
-        #ensure that the trailing / is stripped
-        logger.debug.assert_called_with("Looking up URL /gnm_asset_folder/lookup?path=%2Fpath%2Fto%2Fsomething")
         self.assertEqual(result,'VX-123')
 
         #test unsuccessful lookup
