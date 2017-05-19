@@ -18,6 +18,7 @@ class IgnoreList(object):
         '\.peak$',
         '\.pek$',
         '_synctemp', #this is created by PluralEyes
+        '\.cfa$',
     ]
 
     def __init__(self):
