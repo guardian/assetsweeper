@@ -15,26 +15,10 @@ function increment_release {
     mv ${FILENAME}.new ${FILENAME}
 }
 
-echo ----------------------------
-echo Performing Python build
-echo ----------------------------
-
-cd src
-python ./setup.py bdist
-if [ ! -d "~/rpmbuild" ]; then
-    mkdir -p ~/rpmbuild
+if [ ! -f ~/rpmbuild/assetsweeper.tar.gz ]; then
+    echo assetsweeper.tar.gz was not found.  either buildbdist.sh was not run or it failed, either way we can\'t continue.
+    exit 1
 fi
-
-for x in `ls dist/*.tar.gz`; do cp "$x" ~/rpmbuild/assetsweeper.tar.gz; done
-
-
-echo ----------------------------
-echo Packaging zip
-echo ----------------------------
-
-cd ~
-zip -r assetsweeper-${CIRCLE_BUILD_NUM}.zip assetsweeper/
-aws s3 cp assetsweeper-${CIRCLE_BUILD_NUM}.zip s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/assetsweeper-${CIRCLE_BUILD_NUM}.zip --acl public-read
 
 echo ----------------------------
 echo Packaging RPM

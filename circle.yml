@@ -31,4 +31,7 @@ deployment:
     branch: /.*/
     commands:
       - mkdir -p ~/rpmbuild
+      - chmod a+x *.sh
+      - ./buildzip.sh
+      - ./buildbdist.sh
       - ./buildrpm.sh
