@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash -e
 
 function increment_release {
     FILENAME=$1
@@ -45,7 +45,10 @@ if [ "$?" != "0" ]; then
 fi
 
 for x in `ls ${HOME}/rpmbuild/RPMS/noarch/${RPM_BASE}*.rpm`; do
+    HASH=$(shasum -a 256 "$x" | cut -d ' ' -f 1)
+    echo -e "sha256=$HASH" > assetsweeper.rpm.sha
     aws s3 cp "$x" s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/`basename $x` --acl public-read
+    aws s3 cp assetsweeper.rpm.sha s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/`basename $x`.sha --acl public-read
     if [ "$?" != "0" ]; then
         exit $?
     fi
