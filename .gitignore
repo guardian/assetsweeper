@@ -147,3 +147,4 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 !/assetsweeper.spec
+/rpmtest/.vagrant/

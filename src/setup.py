@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin python
 
 from distutils.core import setup
 
-setup(name='asset_folder_importer',
+setup(name='gnm-assetsweeper',
       version='3.0',
       description='Set of programmes to handle import of items to MAM from asset folders',
       author='Andy Gallagher',

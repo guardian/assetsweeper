@@ -4,7 +4,7 @@ function increment_release {
     FILENAME=$1
 
     RELEASEVER=$(grep '%define release' ${FILENAME} | awk -F ' ' '{print $3}')
-    if [ ${CIRCLE_BUILD_NUM} != "" ]; then
+    if [ "${CIRCLE_BUILD_NUM}" != "" ]; then
         NEWVER=${CIRCLE_BUILD_NUM}
     else
         NEWVER=$(($RELEASEVER+1))
@@ -15,16 +15,16 @@ function increment_release {
     mv ${FILENAME}.new ${FILENAME}
 }
 
-if [ ! -f ~/rpmbuild/assetsweeper.tar.gz ]; then
-    echo assetsweeper.tar.gz was not found.  either buildbdist.sh was not run or it failed, either way we can\'t continue.
-    exit 1
-fi
-
 echo ----------------------------
 echo Packaging RPM
 echo ----------------------------
 
-cd ..
+mkdir -p ${HOME}/rpmbuild/SOURCES
+cd src
+python ./setup.py sdist
+mv dist/*.tar.gz ${HOME}/rpmbuild/SOURCES
+cd .. #FIXME: replace with calculated abs path of script
+
 SPECFILE=assetsweeper.spec
 increment_release assetsweeper.spec
 
