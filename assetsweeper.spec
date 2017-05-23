@@ -15,7 +15,8 @@ BuildRoot: ${_tmppath}/assetsweeper
 Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Andy Gallagher <andy.gallagher@theguardian.com>
-Requires: python-psycopg2 perl-suidperl
+AutoReqProv: no #this line will stop rpm assuming that the packaging virtualenv is the right place to look for python
+Requires: python(abi) = 2.7 python >= 2.7 python-psycopg2
 
 %description
 Suite of five scripts that ingests media into Vidispine in a controlled and manageable way
@@ -27,16 +28,15 @@ Suite of five scripts that ingests media into Vidispine in a controlled and mana
 python setup.py build
 
 %install
-python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+python setup.py install -O1 --prefix=/usr --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%files
+%files -f INSTALLED_FILES
 %defattr(-,root,root)
-/
 
 %post
 #insert commands to run post-install here
-
+#FIXME: need to add in sudo insert here
 %preun
