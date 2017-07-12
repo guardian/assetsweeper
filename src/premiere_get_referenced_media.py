@@ -274,9 +274,13 @@ def process_premiere_project(filepath, db=None, cfg=None):
             
         item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
         item.populate(vsid,specificFields=['gnm_asset_category'])
-        if item.get('gnm_asset_category').lower() == 'branding':
-            lg.info("File %s is branding, not adding to project" % (filepath, ))
-            continue
+        try:
+            if item.get('gnm_asset_category') is not None:
+                if item.get('gnm_asset_category').lower() == 'branding':
+                    lg.info("File %s is branding, not adding to project" % (filepath, ))
+                    continue
+        except:
+            lg.info("gnm_asset_category field not present so continuing")
             
         lg.debug("Got filepath %s" % filepath)
         fileid = db.fileId(server_path)
