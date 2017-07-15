@@ -14,7 +14,7 @@ from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreRe
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
-raven_client = raven.Client('https://bd4329a849e2434c9fde4b5c392b386d:64f6281adc75446d9d19d674c565cb51@sentry.multimedia.theguardian.com/18')
+raven_client = raven.Client('***REMOVED***')
 
 path_map = None
 
