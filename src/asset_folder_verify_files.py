@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin python
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_verify_files $Rev$ $LastChangedDate$'
 __scriptname__ = 'asset_folder_verify_files'

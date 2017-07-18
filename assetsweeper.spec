@@ -1,43 +1,42 @@
 %define name gnm-assetsweeper
 %define version 3.0
 %define unmangled_version 3.0
-%define release dev
+%define release 17
 
 Summary: Asset Sweeper suite
 Name: %{name}
 Version: %{version}
 Release: %{release}
 License: Internal GNM software
-Source0: assetsweeper.tar.gz
+Source0: gnm-assetsweeper-3.0.tar.gz
 Group: Applications/Productivity
 #BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 BuildRoot: ${_tmppath}/assetsweeper
 Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Andy Gallagher <andy.gallagher@theguardian.com>
-Requires: python-psycopg2 perl-suidperl
+AutoReqProv: no #this line will stop rpm assuming that the packaging virtualenv is the right place to look for python
+Requires: python(abi) = 2.7 python >= 2.7 python-psycopg2
 
 %description
 Suite of five scripts that ingests media into Vidispine in a controlled and manageable way
 
 %prep
+%setup -n %{name}-%{unmangled_version}
 
 %build
+python setup.py build
 
 %install
-mkdir -p $RPM_BUILD_ROOT
-cd $RPM_BUILD_ROOT
-tar xvzf ${HOME}/rpmbuild/assetsweeper.tar.gz
-rm -rf $RPM_BUILD_ROOT/home
+python setup.py install -O1 --prefix=/usr --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%files
+%files -f INSTALLED_FILES
 %defattr(-,root,root)
-/
 
 %post
 #insert commands to run post-install here
-
+#FIXME: need to add in sudo insert here
 %preun

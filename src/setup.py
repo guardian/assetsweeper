@@ -1,16 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin python
 
 from distutils.core import setup
 
-setup(name='asset_folder_importer',
+setup(name='gnm-assetsweeper',
       version='3.0',
       description='Set of programmes to handle import of items to MAM from asset folders',
       author='Andy Gallagher',
       author_email='andy.gallagher@theguardian.com',
       packages=['asset_folder_importer',
-                'asset_folder_importer.providers',
+                'asset_folder_importer.asset_folder_sweeper',
+                'asset_folder_importer.asset_folder_vsingester',
                 'asset_folder_importer.fix_unattached_media',
+                'asset_folder_importer.metadata_templates',
                 'asset_folder_importer.pluto',
+                'asset_folder_importer.providers',
                 ],
       package_data={
             'asset_folder_importer': ['metadata_templates/*']

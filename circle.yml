@@ -1,7 +1,7 @@
 machine:
   timezone: Europe/London
   python:
-    version: 2.6.6
+    version: 2.7.5
   environment:
     PYTHONPATH: ${HOME}/assetsweeper/python_vidi
     DB_HOST: localhost
@@ -31,4 +31,7 @@ deployment:
     branch: /.*/
     commands:
       - mkdir -p ~/rpmbuild
+      - chmod a+x *.sh
+      - ./buildzip.sh
+      - ./buildbdist.sh
       - ./buildrpm.sh
