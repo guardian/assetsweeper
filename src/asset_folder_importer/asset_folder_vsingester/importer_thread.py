@@ -353,6 +353,9 @@ class ImporterThread(threading.Thread):
                 try:
                     self.st.create_file_entity(filepath, createOnly=True)
                     time.sleep(1)  # sleep 1s to allow the file to be added
+                except HTTPError as e:
+                    logging.warning(traceback.format_exc())
+                    time.sleep(5) #if we got an HTTP error, sleep and try again
                 except VSConflict:  # if the file was created in the meantime, don't worry about it, just retry the add
                     pass
                 attempts += 1

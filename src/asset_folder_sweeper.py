@@ -35,8 +35,6 @@ parser.add_option("-f","--force", dest="force", help="over-ride any existing loc
 (options, args) = parser.parse_args()
 
 #Step two. Read config
-pprint(args)
-pprint(options)
 
 if options.configfile:
     cfg=configfile(options.configfile)
