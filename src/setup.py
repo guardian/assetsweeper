@@ -14,6 +14,7 @@ setup(name='gnm-assetsweeper',
                 'asset_folder_importer.metadata_templates',
                 'asset_folder_importer.pluto',
                 'asset_folder_importer.providers',
+                'asset_folder_importer.project_size_estimator'
                 ],
       package_data={
             'asset_folder_importer': ['metadata_templates/*']
