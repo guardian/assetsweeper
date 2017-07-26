@@ -16,6 +16,8 @@ main_log_level = logging.INFO
 logfile = "/var/log/plutoscripts/project_size_estimator.log"
 #End configurable parameters
 
+raven_client = None
+
 #START MAIN
 try:
     parser = OptionParser()
@@ -61,5 +63,6 @@ try:
     pprint(totals)
     esclient.index(index='project_sizes',doc_type='summary',body=totals)
 except Exception:
-    raven_client.captureException()
+    if raven_client:
+        raven_client.captureException()
     raise
