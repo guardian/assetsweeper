@@ -10,6 +10,8 @@ class IgnoreList(object):
     pathShouldIgnore = [
         'Adobe Premiere Pro Preview Files',
         'System Volume Information',
+        '\.numbers',
+        '\.plist$',
         '\.TMP',
         '^\.',  #should ignore a literal dot, but only if it follows a /
         '\.pk$',
