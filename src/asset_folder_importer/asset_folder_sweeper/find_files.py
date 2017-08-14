@@ -4,6 +4,7 @@ import logging
 import mimetypes
 from asset_folder_importer.asset_folder_sweeper.posix_get_mime import posix_get_mime
 from asset_folder_importer.asset_folder_sweeper.ignore_list import IgnoreList
+from asset_folder_importer.asset_folder_sweeper.assetfolder import get_asset_folder_for
 logger = logging.getLogger(__name__)
 
 global_ignore_list = IgnoreList()
@@ -32,8 +33,6 @@ def find_files(cfg,db):
 
     n=0
     for dirpath,dirnames,filenames in os.walk(startpath):
-        #print dirpath
-        #pprint(filenames)
         for name in filenames:
             if name.startswith('.'):
                 continue
@@ -43,8 +42,17 @@ def find_files(cfg,db):
             fullpath = os.path.join(dirpath,name)
             logger.debug("Attempting to add file at path: '%s'" % fullpath)
             try:
+                asset_folder = get_asset_folder_for(dirpath)
+            except ValueError as e:
+                logger.error(str(e))
+                asset_folder = None
+            except IndexError as e:
+                logger.warning("Suspicious file path: {0} is too short for an asset folder".format(str(e)))
+                asset_folder = None
+
+            try:
                 statinfo, mt = check_mime(fullpath,db)
-                db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
+                db.upsert_file_record(dirpath,name,statinfo,mt,asset_folder=asset_folder, ignore=shouldIgnore)
 
             except UnicodeDecodeError as e:
                 db.insert_sysparam("warning",str(e))

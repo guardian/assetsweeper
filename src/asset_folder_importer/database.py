@@ -392,7 +392,7 @@ class importer_db:
             logging.warning("Unable to update to ignore gone file: %s" % str(e))
             self.insert_sysparam("warning",str(e))
 
-    def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
+    def upsert_file_record(self,filepath,filename,statinfo,mimetype,asset_folder=None,ignore=None):
         cursor=self.conn.cursor()
         self.conn.commit()
         safe_filepath = filepath.decode('utf-8', 'strict')
@@ -411,12 +411,23 @@ class importer_db:
         except Exception as e:
             logging.warning("An error occurred: " + str(e) + " trying to get ignore flag")
 
-        sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
+        param_list = [statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype]
+
+        if asset_folder is not None:
+            extra_params = "asset_folder=%s"
+            param_list.append(asset_folder)
+        else:
+            extra_params = ""
+
+        param_list.append(id)
+
+        sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s {extra} where id=%s".format(
             mt="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_mtime)+" * INTERVAL '1 second')",
             at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
             ct="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_ctime)+" * INTERVAL '1 second')",
+            extra=extra_params
         )
-        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,id))
+        cursor.execute(sqlcmd, tuple(param_list))
 
         if ignore is not None:
             cursor.execute("update files set ignore={ign} where id={id}".format(
