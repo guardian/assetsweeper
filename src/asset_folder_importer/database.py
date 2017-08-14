@@ -95,7 +95,6 @@ class importer_db:
             ADD COLUMN problem_detail text;
         """
         cursor.execute(sqlcmd)
-        #self.conn.commit()
 
     def update_schema_22(self):
         cursor = self.conn.cursor()
@@ -116,6 +115,15 @@ class importer_db:
         sqlcmd = "create index system_pid on system (pid)"
         cursor.execute(sqlcmd)
         sqlcmd = "create index system_key on system (key);"
+        cursor.execute(sqlcmd)
+
+    def update_schema_23(self):
+        cursor = self.conn.cursor()
+        sqlcmd = """
+        ALTER TABLE files ADD COLUMN asset_folder CHARACTER VARYING(256);
+        """
+        cursor.execute(sqlcmd)
+        sqlcmd = """CREATE INDEX ON files (asset_folder);"""
         cursor.execute(sqlcmd)
 
     def _has_table(self,tablename,schemaname="public"):
@@ -157,6 +165,11 @@ class importer_db:
     def check_schema_22(self):
         if not self._has_table('run_history'):
             self.update_schema_22()
+            self.conn.commit()
+
+    def check_schema_23(self):
+        if not self._has_column('files','asset_folder'):
+            self.update_schema_23()
             self.conn.commit()
 
     def insert_sysparam(self,key,value):
@@ -647,3 +660,20 @@ class importer_db:
             print "Unable to update sidecar table"
             self.conn.rollback()
             raise StandardError("Debug: sidecar update failed")
+
+    def files_with_no_assetfolder(self):
+        """
+        Generator that yields file records with no asset folder
+        :return: yields tuples of (fileid, filepath, filename, mime_type)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("select id, filepath, filename, mime_type from files where asset_folder is NULL")
+
+        for row in cursor.fetchall():
+            yield(row[0],row[1],row[2],row[3])
+
+    def update_file_assetfolder(self, fileid, asset_folder, should_commit=True):
+        cursor = self.conn.cursor()
+        cursor.execute("update files set asset_folder = %s where id=%s", (asset_folder, fileid))
+        if should_commit:
+            self.conn.commit()

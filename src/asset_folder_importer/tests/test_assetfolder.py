@@ -8,7 +8,30 @@ import httplib
 import json
 
 
-class TestAssetfolder(unittest.TestCase):
+class TestSweeperAssetFolder(unittest.TestCase):
+    def test_get_assetfolder_working(self):
+        """
+        get_asset_folder_for should return the asset folder segment for a valid path
+        :return:
+        """
+        from asset_folder_importer.asset_folder_sweeper.assetfolder import get_asset_folder_for
+
+        result = get_asset_folder_for("/srv/Multimedia2/Media Production/Assets/Multimedia_News/Anywhere_But_Westminster_The_New_Series/john_domokos_The_future_of_trade_unions/stills from Strike Day")
+        self.assertEqual(result, 'Multimedia_News/Anywhere_But_Westminster_The_New_Series/john_domokos_The_future_of_trade_unions')
+
+    def test_get_assetfolder_invalid(self):
+        """
+        get_asset_folder_for should return ValueError for an invalid path
+        :return:
+        """
+        from asset_folder_importer.asset_folder_sweeper.assetfolder import get_asset_folder_for
+
+        with self.assertRaises(ValueError) as value_excpt:
+            result = get_asset_folder_for("/srv/Proxies2/DAMSYSTEM/invalidpath")
+            self.assertEqual(value_excpt.exception, "/srv/Proxies2/DAMSYSTEM/invalidpath does not look like a valid asset folder path")
+
+
+class TestPlutoAssetfolder(unittest.TestCase):
     class FakeResponse(object):
         def __init__(self,content,status):
             self.content = content
