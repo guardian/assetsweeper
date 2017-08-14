@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 
-from optparse import OptionParser
 from asset_folder_importer.threadpool import ThreadPool
 from threading import Thread
-from gnmvidispine.vs_storage import VSStorage
 from asset_folder_importer.database import importer_db
 from asset_folder_importer.config import configfile
 from pprint import pprint
 from optparse import OptionParser
-import traceback
-import os
-import re
-import time
 import logging
 from Queue import PriorityQueue, Empty
 
@@ -23,16 +17,20 @@ main_log_level = logging.DEBUG
 logfile = "/var/log/plutoscripts/populate_asset_folder.log"
 #End configurable parameters
 
+#the purpose of this script is to power this query! :-
+# select distinct(asset_folder),sum(size) as total_size from files where asset_folder is not null group by asset_folder order by total_size desc;
 
 logger = logging.getLogger(__name__)
 
 
 class ProcessThread(Thread):
-    def __init__(self, work_queue, *args, **kwargs):
+    def __init__(self, work_queue, commit_threshold=100, *args, **kwargs):
         super(ProcessThread,self).__init__(*args,**kwargs)
         self._queue = work_queue
         self._timeout = 10
         self._db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
+        self._counter = 0
+        self.commit_threshold=commit_threshold
 
     def run(self):
         while True:
@@ -42,6 +40,11 @@ class ProcessThread(Thread):
                 if data is None:
                     break
                 self.process(data)
+                self._counter +=1
+                if self._counter>self.commit_threshold:
+                    logger.info("Committing {0} updates to db".format(self._counter))
+                    self._db.commit()
+                    self._counter=0
             except Empty:
                 break
         self._db.commit()
@@ -56,8 +59,8 @@ class ProcessThread(Thread):
 
         try:
             result = get_asset_folder_for(rowtuple[1])
-            logger.info("Updating file {0} with asset folder {1}".format(rowtuple[0],rowtuple[1]))
-            self._db.update_file_assetfolder(rowtuple[0], result, should_commit=False)
+            logger.info("Updating file {0} with asset folder {1}".format(rowtuple[0],result))
+            self._db.update_file_assetfolder(rowtuple[0], result, should_commit=True)
         except ValueError as e:
             logger.warning(str(e))
         except IndexError as e:

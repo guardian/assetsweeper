@@ -21,7 +21,7 @@ setup(name='gnm-assetsweeper',
       scripts=['asset_folder_sweeper.py','asset_folder_verify_files.py',
                'asset_folder_vsingester.py','asset_permissions.pl',
                'prelude_importer.py','premiere_get_referenced_media.py',
-               'fix_unattached_media.py'],
+               'fix_unattached_media.py', 'populate_asset_folder.py'],
       data_files=[
           ('/etc',['asset_folder_importer.cfg','footage_providers.yml'])
       ]
