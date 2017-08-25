@@ -1,1 +1,1 @@
-asset_folder_importer localhost=(root) NOPASSWD: /usr/bin/asset_permissions.pl
+asset_folder_importer ALL=(root) NOPASSWD: /usr/bin/asset_permissions.pl
