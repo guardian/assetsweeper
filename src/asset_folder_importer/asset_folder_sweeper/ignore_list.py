@@ -10,6 +10,7 @@ class IgnoreList(object):
     pathShouldIgnore = [
         'Adobe Premiere Pro Preview Files',
         'System Volume Information',
+        '\.Spotlight.*',
         '\.numbers',
         '\.plist$',
         '\.TMP',
