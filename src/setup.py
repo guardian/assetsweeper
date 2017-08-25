@@ -23,6 +23,7 @@ setup(name='gnm-assetsweeper',
                'prelude_importer.py','premiere_get_referenced_media.py',
                'fix_unattached_media.py'],
       data_files=[
-          ('/etc',['asset_folder_importer.cfg','footage_providers.yml'])
+          ('/etc',['asset_folder_importer.cfg','footage_providers.yml']),
+          ('/etc/sudoers.d',['asset_folder_sudo'])
       ]
       )

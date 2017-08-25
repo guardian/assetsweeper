@@ -21,7 +21,7 @@ from asset_folder_importer.asset_folder_vsingester.importer_thread import *
 
 MAXTHREADS = 4
 #suid perl script so we don't need to run the whole shebang as root
-PERMISSIONSCRIPT = "/usr/local/scripts/asset_folder_importer/asset_permissions.pl"
+PERMISSIONSCRIPT = "/usr/bin/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
 XML_CHECK_TIMEOUT = 60  #wait up to 60s for XML validation
 import sys
@@ -34,6 +34,7 @@ main_log_level = logging.DEBUG
 logfile = "/var/log/plutoscripts/asset_folder_vsingester.log"
 graveyard_folder = "/var/log/plutoscripts/asset_folder_ingester_failed_xml"
 #End configurable parameters
+
 
 #This function is the main program, but is contained here to make it easier to catch exceptions
 def innerMainFunc(cfg,db,limit):

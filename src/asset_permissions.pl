@@ -1,5 +1,7 @@
-#!/usr/bin/suidperl -wT
+#!/usr/bin/perl -wT
 #This helper script is installed suid-root, to allow permissions to be set without requiring the whole vsingester to be run as root
+use warnings;
+use strict;
 use File::Basename;
 
 our $only_allow="^/srv"; #only allow files matching this expression to be changed
