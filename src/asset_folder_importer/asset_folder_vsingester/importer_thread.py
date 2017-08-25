@@ -270,9 +270,9 @@ class ImporterThread(threading.Thread):
         file = os.path.join(fileref['filepath'], fileref['filename'])
         from subprocess import call
         try:
-            call([self._permissionscript, file])
+            call(["/bin/sudo", self._permissionscript, file])
         except StandardError as e:
-            self.logger.error(e)
+            self.logger.error("Error calling permissions script {0} on {1}: {2}".format(self._permissionscript, file, e))
 
     def import_tags_for_fileref(self,fileref):
         """

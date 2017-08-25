@@ -1,0 +1,2 @@
+#this file goes into /etc/sudoers.d and allows us to update file permissions. It should be installed by the rpm or setup.py.
+asset_folder_importer localhost=(root) NOPASSWD: /usr/bin/asset_permissions.pl
