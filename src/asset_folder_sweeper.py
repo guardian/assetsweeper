@@ -15,7 +15,6 @@ __version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
 __scriptname__ = 'asset_folder_sweeper'
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-main_log_level = logging.DEBUG
 #logfile = None
 logfile = "/var/log/plutoscripts/asset_folder_sweeper.log"
 #End configurable parameters
@@ -31,17 +30,25 @@ parser.add_option("-u", "--user", dest="user", help="use this username when comm
 parser.add_option("-w", "--password", dest="passwd", help="use this password when communicating with Vidispine")
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
 parser.add_option("-f","--force", dest="force", help="over-ride any existing lock and run anyway, possibly competing with another instance")
-
+parser.add_option("-l","--loglevel", dest="loglevel", help="logging level. 0 for errors only, 1 for warnings, 2 for log and 3 for debug", default=1)
 (options, args) = parser.parse_args()
 
 #Step two. Read config
-pprint(args)
-pprint(options)
-
 if options.configfile:
     cfg=configfile(options.configfile)
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
+
+if options.loglevel==0:
+    main_log_level=logging.ERROR
+elif options.loglevel==1:
+    main_log_level=logging.WARNING
+elif options.loglevel==2:
+    main_log_level=logging.INFO
+elif options.loglevel==3:
+    main_log_level=logging.DEBUG
+else:
+    main_log_level=logging.ERROR
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
