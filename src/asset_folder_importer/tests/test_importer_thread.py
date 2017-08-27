@@ -6,7 +6,7 @@ import mock
 import logging
 import httplib
 import json
-
+import gnmvidispine.vs_storage
 
 class TestImporterThread(unittest.TestCase):
     def __init__(self, *args,**kwargs):
@@ -113,7 +113,6 @@ class TestImporterThread(unittest.TestCase):
             result = i.ask_pluto_for_projectid("/path/to/something/invalid/media.mxf")
             self.assertEqual(result,None)
 
-
     def test_find_valid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
@@ -136,3 +135,43 @@ class TestImporterThread(unittest.TestCase):
 
             result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/media.mxf")
             self.assertEqual(result, 'KP-1234')
+
+    class StalledJob(object):
+        """
+        Simulate a job that stalls, i.e. always returns that it is "started" and progressing
+        """
+        def __init__(self):
+            self.abort = mock.MagicMock()
+
+        def finished(self):
+            return False
+
+        def status(self):
+            return "STARTED"
+
+        def update(self,noraise=True):
+            pass
+
+    def test_timeout_retries(self):
+        from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread, ImportStalled
+        from asset_folder_importer.database import importer_db
+        from time import time
+
+        with mock.patch('psycopg2.connect') as mock_connect:
+            db = importer_db("_test_Version_", username="circletest", password="testpass")
+
+        with mock.patch('httplib.HTTPConnection') as mock_connection:
+            fake_job = self.StalledJob()
+
+            mock_vsfile = mock.MagicMock(target=gnmvidispine.vs_storage.VSFile)
+            mock_vsfile.importToItem = mock.MagicMock(return_value=fake_job)
+
+            i=ImporterThread(None,None,self.FakeConfig({
+                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+            }),dbconn=db,import_timeout=4)  #set importer timeout to 4s
+            start_time = time()
+            with self.assertRaises(ImportStalled):
+                i.do_real_import(mock_vsfile,"/path/to/filename","fake_xml",['tagone'])
+            self.assertGreaterEqual(time()-start_time,4)    #should have taken at least 4 seconds
+            mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW")
+            fake_job.abort.assert_called_once_with()
