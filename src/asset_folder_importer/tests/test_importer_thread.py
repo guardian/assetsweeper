@@ -66,7 +66,7 @@ class TestImporterThread(unittest.TestCase):
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'image/tiff'}), ['lowimage'])
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'audio/aiff'}), ['lowaudio'])
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'audio/wav'}), ['lowaudio'])
-
+        self.assertEqual(i.import_tags_for_fileref({'mime_type': 'application/xml'}),None)
     class FakeResponse(object):
         def __init__(self, content, status):
             self.content = content

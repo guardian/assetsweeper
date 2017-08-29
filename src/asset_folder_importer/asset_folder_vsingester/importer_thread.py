@@ -32,7 +32,20 @@ class ImporterThread(threading.Thread):
     potentialSidecarExtensions = ['.xml', '.xmp', '.meta', '.XML', '.XMP']
     
     def __init__(self, q, storageid, cfg, permission_script="/invalid/permissionscript",
-                 graveyard_folder="/tmp", timeout=60, import_timeout=3600, logger=None, dbconn=None):
+                 graveyard_folder="/tmp", timeout=60, import_timeout=3600, close_file_timeout=300, logger=None, dbconn=None):
+        """
+        Initialises a new ImporterThread
+        :param q: job queue to work from
+        :param storageid: Storage ID to import from
+        :param cfg: configuration object from config file and commandline
+        :param permission_script: location of the suid change-permissions script
+        :param graveyard_folder: graveyard folder to move invalid jobs to (defaults to /tmp)
+        :param timeout: time to wait for API calls to complete (default: 60s; this is also the loadbalancer timeout)
+        :param import_timeout: time to wait for a Vidispine import job before cancelling it as it is stalled (default: 1 hour)
+        :param close_file_timeout: time to wait on processing a job before sending vidispine a close-file request (see https://support.vidispine.com/support/tickets/1360) (default: 5mins)
+        :param logger: logger object to log to. For testing purposes, really; if None then a new logger will be created. (default: None)
+        :param dbconn: database connection. For testing purposes really; if None then a new database connection will be created (default: None)
+        """
         super(ImporterThread, self).__init__()
         
         self.templateEnv = Environment(loader=PackageLoader('asset_folder_importer', 'metadata_templates'))
@@ -56,7 +69,7 @@ class ImporterThread(threading.Thread):
         self._timeout = timeout
         self.graveyard_folder=graveyard_folder
         self._importer_timeout = import_timeout
-        
+        self._close_file_timeout = close_file_timeout
         try:
             providers_config_file = self.cfg.value('footage_providers_config', noraise=False)
         except KeyError:
@@ -343,6 +356,7 @@ class ImporterThread(threading.Thread):
         import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW")
 
         job_start_time = time.time()
+        close_sent = False
         while import_job.finished() is False:
             self.logger.info("\tJob status is %s" % import_job.status())
             if time.time() - job_start_time > self._importer_timeout:
@@ -350,7 +364,8 @@ class ImporterThread(threading.Thread):
                 import_job.abort()
                 self.logger.error("\tSent abort signal to job")
                 raise ImportStalled(filepath)
-
+            if time.time() - job_start_time > self._close_file_timeout and not close_sent:
+                vsfile.setState("CLOSED")
             sleep(5)
             import_job.update(noraise=False)
 
