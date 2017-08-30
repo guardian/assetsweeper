@@ -24,5 +24,10 @@ getty:
 
 associated_press:
   match:
-    - '^(?P<site_id>\w+)_(?P<format>\d{3,4}[id]\d{2})ESSENCE'
+    - '^(?P<story_id>\w+)_(?P<format>\d{3,4}[idp]\d{2})ESSENCE'
   module: asset_folder_importer.providers.associated_press
+
+reuters_download:
+  match:
+    - '^(?P<date>[\d\-]+)T(?P<time>\d+)(?P<timezone>[^_]+)_(?P<version>\d+)_(?P<clipid>[^_]+)_(?P<chanid>[^_]+)_(?P<unknown>\w+)_(?P<slug>[^\.]+)'
+  module: asset_folder_importer.providers.reuters_download
