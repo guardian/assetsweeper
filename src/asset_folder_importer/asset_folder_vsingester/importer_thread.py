@@ -429,7 +429,7 @@ class ImporterThread(threading.Thread):
                 import_tags = self.import_tags_for_fileref(fileref)
                 
                 self.setPermissions(fileref)
-                import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW")
+                import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW", jobMetadata={"gnm_app": "vsingester"})
                 
                 while import_job.finished() is False:
                     self.logger.info("\tJob status is %s" % import_job.status())
