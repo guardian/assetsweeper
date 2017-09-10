@@ -240,6 +240,11 @@ class ImporterThread(threading.Thread):
                 self.logger.warning(msgstring)
                 self.logger.warning(traceback.format_exc())
                 self.db.insert_sysparam("warning", msgstring)
+            except VSFileInconsistencyError as e:
+                msgstring = "Vidispine file inconsistency when trying to import {0}".format(filepath)
+                self.logger.warning(msgstring)
+                self.logger.warning(traceback.format_exc())
+                self.db.insert_sysparam("warning", msgstring)
             except VSNotFound as e:
                 msgstring = "WARNING: File %s was not found: %s" % (filepath, e.message)
                 self.logger.warning(msgstring)
@@ -355,6 +360,11 @@ class ImporterThread(threading.Thread):
                     time.sleep(1)  # sleep 1s to allow the file to be added
                 except VSConflict:  # if the file was created in the meantime, don't worry about it, just retry the add
                     pass
+                except HTTPError as e:
+                    if e==503:
+                        logging.warning("Received 503 when trying to create file entity.  Bailing out")
+                        raise VSFileInconsistencyError()
+
                 attempts += 1
         
         if vsfile.memberOfItem is not None:
@@ -430,7 +440,7 @@ class ImporterThread(threading.Thread):
                 
                 self.setPermissions(fileref)
                 import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW", jobMetadata={"gnm_app": "vsingester"})
-                
+
                 while import_job.finished() is False:
                     self.logger.info("\tJob status is %s" % import_job.status())
                     sleep(5)
