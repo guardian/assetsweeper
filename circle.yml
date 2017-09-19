@@ -12,10 +12,6 @@ machine:
   pre:
     - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev
 
-dependencies:
-  cache_directories:
-    - "/home/ubuntu/virtualenvs/venv-2.6.6"
-
 checkout:
   post:
     - git submodule init
