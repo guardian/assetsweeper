@@ -361,9 +361,11 @@ class ImporterThread(threading.Thread):
                 except VSConflict:  # if the file was created in the meantime, don't worry about it, just retry the add
                     pass
                 except HTTPError as e:
-                    if e==503:
+                    if e.code==503:
                         logging.warning("Received 503 when trying to create file entity.  Bailing out")
-                        raise VSFileInconsistencyError()
+                        raise VSFileInconsistencyError(filepath)
+                    else:
+                        logging.warning("Received {0} HTTP error from Vidispine. Retrying.".format(e.code))
 
                 attempts += 1
         
