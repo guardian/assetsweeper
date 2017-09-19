@@ -136,7 +136,7 @@ class TestImporterThread(unittest.TestCase):
             result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/media.mxf")
             self.assertEqual(result, 'KP-1234')
 
-   def test_vs_inconsistency_error(self):
+    def test_vs_inconsistency_error(self):
         from gnmvidispine.vs_storage import VSStorage, VSFile
         from gnmvidispine.vidispine_api import VSNotFound, HTTPError
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
