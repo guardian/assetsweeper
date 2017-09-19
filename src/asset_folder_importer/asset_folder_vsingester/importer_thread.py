@@ -353,7 +353,7 @@ class ImporterThread(threading.Thread):
         :param import_tags: shape tags describing required transcodes
         :return: None
         """
-        import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW")
+        import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW", jobMetadata={"gnm_app": "vsingester"})
 
         job_start_time = time.time()
         close_sent = False

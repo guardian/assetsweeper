@@ -22,6 +22,7 @@ class IgnoreList(object):
         '\.pek$',
         '_synctemp', #this is created by PluralEyes
         '\.cfa$',
+        '\.aep Logs'
     ]
 
     def __init__(self):

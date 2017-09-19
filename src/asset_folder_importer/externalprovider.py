@@ -178,4 +178,4 @@ if __name__ == '__main__':
 
     templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
     mdTemplate = templateEnv.get_template('vsasset_test.xml')
-    print(mdTemplate.render({'externalmeta': data}))
+    print(mdTemplate.render({'externalmeta': data.to_vs_xml()}))
