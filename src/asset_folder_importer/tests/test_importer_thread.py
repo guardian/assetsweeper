@@ -173,5 +173,5 @@ class TestImporterThread(unittest.TestCase):
             with self.assertRaises(ImportStalled):
                 i.do_real_import(mock_vsfile,"/path/to/filename","fake_xml",['tagone'])
             self.assertGreaterEqual(time()-start_time,4)    #should have taken at least 4 seconds
-            mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW")
+            mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW",jobMetadata={'gnm_app': 'vsingester'})
             fake_job.abort.assert_called_once_with()
