@@ -7,7 +7,7 @@ from gnmvidispine.vidispine_api import VSBadRequest,VSNotFound, VSException, HTT
 from asset_folder_importer.database import importer_db
 from asset_folder_importer.xdcam_metadata import XDCAMImporter,InvalidDataError
 from pprint import pprint
-from time import sleep
+from time import sleep, time
 import traceback
 import os
 import re
@@ -24,11 +24,28 @@ __version__ = 'asset_folder_vsingester $$'
 __scriptname__ = 'asset_folder_vsingester'
 
 
+class ImportStalled(StandardError):
+    pass
+
+
 class ImporterThread(threading.Thread):
     potentialSidecarExtensions = ['.xml', '.xmp', '.meta', '.XML', '.XMP']
     
     def __init__(self, q, storageid, cfg, permission_script="/invalid/permissionscript",
-                 graveyard_folder="/tmp", timeout=60, logger=None, dbconn=None):
+                 graveyard_folder="/tmp", timeout=60, import_timeout=3600, close_file_timeout=300, logger=None, dbconn=None):
+        """
+        Initialises a new ImporterThread
+        :param q: job queue to work from
+        :param storageid: Storage ID to import from
+        :param cfg: configuration object from config file and commandline
+        :param permission_script: location of the suid change-permissions script
+        :param graveyard_folder: graveyard folder to move invalid jobs to (defaults to /tmp)
+        :param timeout: time to wait for API calls to complete (default: 60s; this is also the loadbalancer timeout)
+        :param import_timeout: time to wait for a Vidispine import job before cancelling it as it is stalled (default: 1 hour)
+        :param close_file_timeout: time to wait on processing a job before sending vidispine a close-file request (see https://support.vidispine.com/support/tickets/1360) (default: 5mins)
+        :param logger: logger object to log to. For testing purposes, really; if None then a new logger will be created. (default: None)
+        :param dbconn: database connection. For testing purposes really; if None then a new database connection will be created (default: None)
+        """
         super(ImporterThread, self).__init__()
         
         self.templateEnv = Environment(loader=PackageLoader('asset_folder_importer', 'metadata_templates'))
@@ -51,7 +68,8 @@ class ImporterThread(threading.Thread):
         self.logger = logger if logger is not None else logging.getLogger("importer_thread")
         self._timeout = timeout
         self.graveyard_folder=graveyard_folder
-        
+        self._importer_timeout = import_timeout
+        self._close_file_timeout = close_file_timeout
         try:
             providers_config_file = self.cfg.value('footage_providers_config', noraise=False)
         except KeyError:
@@ -278,7 +296,7 @@ class ImporterThread(threading.Thread):
         """
         Returns shape tags to transcode the incoming file to, dependent on the mime type of the incoming file
         :param fileref: dictionary containing the mime_type to check
-        :return: list of shape tags, empty list if none matching.
+        :return: list of shape tags, or None if none matching.
         """
         if fileref['mime_type'] and fileref['mime_type'].startswith("video/"):
             return['lowres']
@@ -291,7 +309,7 @@ class ImporterThread(threading.Thread):
         elif fileref['mime_type'] and fileref['mime_type'] == "model/vnd.mts":
             # mpeg transport streams are detected as this mimetype
             return ['lowres']
-        return []
+        return None
     
     def get_prelude_data(self, fileref, xdImporter):
         preludeclip = self.db.get_prelude_data(fileref['prelude_ref'])
@@ -324,7 +342,33 @@ class ImporterThread(threading.Thread):
         except LookupError as e:
             self.logger.error(unicode(e))
             return ""
-            
+
+    def do_real_import(self, vsfile, filepath,mdXML,import_tags):
+        """
+        Make the import call to vidispine, and wait for self._importer_timeout seconds for the job to complete.
+        Raises a VSException representing the job error if the import job fails, or ImportStalled if the timeout occurs
+        :param vsfile: VSFile object to import
+        :param filepath: filepath of the VSFile
+        :param mdXML: compiled metadata XML to import alongside the media
+        :param import_tags: shape tags describing required transcodes
+        :return: None
+        """
+        import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW", jobMetadata={"gnm_app": "vsingester"})
+
+        job_start_time = time.time()
+        close_sent = False
+        while import_job.finished() is False:
+            self.logger.info("\tJob status is %s" % import_job.status())
+            if time.time() - job_start_time > self._importer_timeout:
+                self.logger.error("\tJob has taken more than {0} seconds to complete, concluding that it must be stalled.".format(self._importer_timeout))
+                import_job.abort()
+                self.logger.error("\tSent abort signal to job")
+                raise ImportStalled(filepath)
+            if time.time() - job_start_time > self._close_file_timeout and not close_sent:
+                vsfile.setState("CLOSED")
+            sleep(5)
+            import_job.update(noraise=False)
+
     def attempt_file_import(self, fileref, filepath, rootpath):
         """
         Performs the actual import of a file
@@ -429,14 +473,12 @@ class ImporterThread(threading.Thread):
                 import_tags = self.import_tags_for_fileref(fileref)
                 
                 self.setPermissions(fileref)
-                import_job = vsfile.importToItem(mdXML, tags=import_tags, priority="LOW", jobMetadata={"gnm_app": "vsingester"})
-                
-                while import_job.finished() is False:
-                    self.logger.info("\tJob status is %s" % import_job.status())
-                    sleep(5)
-                    import_job.update(noraise=False)
+
+                self.do_real_import(vsfile,filepath,mdXML,import_tags)
                 
                 imported += 1
+
+                self.attempt_import_sidecar(rootpath, filepath, fileref, vsfile)
 
                 # re-get the file information. Have some retries in case Vidispine hasn't caught up yet.
                 for attempt in range(1, 10):
@@ -457,8 +499,6 @@ class ImporterThread(threading.Thread):
                     
                 if not self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), preludeproject, cubaseref, vsfile):
                     return (found, withItems, imported)
-            
-                self.attempt_import_sidecar(rootpath, filepath, fileref, vsfile)
                 
             except VSJobFailed as e:
                 msgstring = "WARNING: Vidispine import job failed: %s" % str(e)
@@ -472,6 +512,10 @@ class ImporterThread(threading.Thread):
                                                                                         e.request_body))
             except VSException as e:
                 msgstring = "WARNING: Vidispine error when importing: %s" % str(e)
+                self.logger.error(msgstring)
+                self.db.insert_sysparam("warning", msgstring)
+            except ImportStalled as e:
+                msgstring = "WARNING: Import job timed out when trying to import: %s" % str(e)
                 self.logger.error(msgstring)
                 self.db.insert_sysparam("warning", msgstring)
 

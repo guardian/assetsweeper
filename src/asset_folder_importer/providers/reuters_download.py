@@ -12,7 +12,7 @@ class Provider(BaseProvider):
         rtn['gnm_mm_ref'] = match_data.group('slug')
         rtn['CopyrightandLegalInformation'] = {
             'gnm_copyright_legal_copyright': 'Reuters',
-            'gnm_copyrightandlegalinformation_provider_clip_id': match_data.group('slug') #entire matched string,
+            'gnm_copyright_legal_provider_clip_id': match_data.group('slug') #entire matched string,
         }
         rtn['RightsProfileInformation'] = {
             'ContributorType': {

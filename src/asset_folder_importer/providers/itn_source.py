@@ -12,7 +12,7 @@ class Provider(BaseProvider):
         rtn['gnm_mm_ref'] = match_data.group('itn_longid')
         rtn['CopyrightandLegalInformation'] = {
             'gnm_copyright_legal_copyright': 'ITN Source',
-            'gnm_copyrightandlegalinformation_provider_clip_id': match_data.group('itn_shortid'),
+            'gnm_copyright_legal_provider_clip_id': match_data.group('itn_shortid'),
         }
         rtn['RightsProfileInformation'] = {
             'ContributorType': {
