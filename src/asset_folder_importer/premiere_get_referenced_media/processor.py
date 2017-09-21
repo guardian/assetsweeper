@@ -1,6 +1,6 @@
 from asset_folder_importer.database import *
 from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
-from asset_folder_importer.premiere_get_referenced_media.Exceptions import NoMediaError, InvalidDataError
+from asset_folder_importer.premiere_get_referenced_media.Exceptions import NoMediaError, InvalidDataError, NotInDatabaseError
 from gnmvidispine.vs_collection import VSCollection
 from gnmvidispine.vs_item import VSItem
 from gnmvidispine.vidispine_api import *
@@ -99,6 +99,39 @@ def remove_path_chunks(filepath, to_remove):
     return os.path.sep.join(pathsegments[to_remove:])
 
 
+def process_premiere_fileref(filepath, server_path, vsproject, db=None, cfg=None):
+    """
+    process an individual file reference from a project
+    :param filepath: file path to process
+    :param server_path: file path as it is seen from the server
+    :param vsproject: vidispine collection object representing the VS project
+    :param db: assetimporter database object
+    :param cfg: assetimporter configuration object
+    :return: item reference or None
+    """
+    vsid = db.get_vidispine_id(server_path)
+    # this call will return None if the file is not from an asset folder, e.g. newswire
+    if vsid is None:
+        vsid = find_item_id_for_path(server_path)
+        if vsid is None:
+            lg.error("File {0} is found by Vidispine but has not been imported yet".format(server_path))
+            return None
+
+    item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+    item.populate(vsid,specificFields=['gnm_asset_category'])
+    if item.get('gnm_asset_category').lower() == 'branding':
+        lg.info("File %s is branding, not adding to project" % (filepath, ))
+
+    lg.debug("Got filepath %s" % filepath)
+    fileid = db.fileId(server_path)
+    if fileid:
+        db.link_file_to_edit_project(fileid, vsproject.name)
+        lg.debug("Linked file %s with id %s to project %s" % (filepath, fileid, vsproject.name))
+    else:
+        raise NotInDatabaseError
+    return item
+
+
 def process_premiere_project(filepath, raven_client, db=None, cfg=None):
     """
     Main function to process a Premiere project file
@@ -162,54 +195,30 @@ def process_premiere_project(filepath, raven_client, db=None, cfg=None):
     lg.debug("looking for referenced media....")
     for filepath in pp.getReferencedMedia():
         total_files += 1
+        lg.debug("Looking up {0}".format(filepath))
         server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
-
-        vsid = db.get_vidispine_id(server_path)
-        # this call will return None if the file is not from an asset folder, e.g. newswire
-        if vsid is None:
-            try:
-                vsid = find_item_id_for_path(server_path)
-                if vsid is None:
-                    lg.error("File {0} is found by Vidispine but has not been imported yet".format(server_path))
-                    continue
-            except VSNotFound:
-                lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
-                continue
-
-        item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-        item.populate(vsid,specificFields=['gnm_asset_category'])
         try:
-            if item.get('gnm_asset_category').lower() == 'branding':
-                lg.info("File %s is branding, not adding to project" % (filepath, ))
-                if "Internet Downloads" in server_path:
-                    vsproject.set_metadata({'gnm_project_invalid_media_paths': server_path}, mode="add")
+            item=process_premiere_fileref(filepath, server_path, vsproject, db=db, cfg=cfg)
+            #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
+            #in the parent collections list (cached on the item record) without lifting any more info out of VS
+            if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
+                lg.info("File %s is already in project %s" % (filepath,vsproject.name))
                 continue
-        except AttributeError:
-            lg.warning("File %s has no value for gnm_asset_catetory" % (filepath, ))
 
-        lg.debug("Got filepath %s" % filepath)
-        fileid = db.fileId(server_path)
-        if fileid:
-            try:
-                db.link_file_to_edit_project(fileid, project_id)
-                lg.debug("Linked file %s with id %s to project %s" % (filepath, fileid, project_id))
-            except AlreadyLinkedError:
-                lg.info("File %s with id %s is already linked to project %s" % (filepath, fileid, project_id))
-                continue
-        else:
+            vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
+        except VSNotFound:
+            lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
+            if "Internet Downloads" in filepath:
+                #note - this could raise a 400 exception IF there is a conflict with something else trying to add info to the same field
+                vsproject.set_metadata({'gnm_project_invalid_media_paths': filepath}, mode="add")
+            continue
+        except NotInDatabaseError:
             not_in_db += 1
             lg.warning("File %s could not be found in the database" % filepath)
             continue
-        n = 0
-        found = False
-
-        #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
-        #in the parent collections list (cached on the item record) without lifting any more info out of VS
-        if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
-            lg.info("File %s is already in project %s" % (filepath,vsproject.name))
+        except AlreadyLinkedError as e:
+            lg.info("File %s with id %s is already linked to project %s" % (filepath, e.fileid, e.vsprojectid))
             continue
-
-        vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
 
     lg.info(
         "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (

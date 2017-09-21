@@ -3,3 +3,6 @@ class InvalidDataError(StandardError):
 
 class NoMediaError(StandardError):
     pass
+
+class NotInDatabaseError(StandardError):
+    pass
