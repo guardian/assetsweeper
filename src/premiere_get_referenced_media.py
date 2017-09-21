@@ -2,316 +2,28 @@
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'premiere_get_referenced_media $Rev$ $LastChangedDate$'
 __scriptname__ = 'premiere_get_referenced_media'
-import xml.etree.ElementTree as ET
-import sys
-from pprint import pprint
-import gzip
-import logging
+
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
 from asset_folder_importer.logginghandler import AssetImporterLoggingHandler
+from asset_folder_importer.premiere_get_referenced_media.Exceptions import NoMediaError, InvalidDataError
+from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
 from optparse import OptionParser
-from gnmvidispine.vs_collection import VSCollection
-from gnmvidispine.vs_item import VSItem
 from gnmvidispine.vidispine_api import *
 from gnmvidispine.vs_storage import VSStoragePathMap, VSStorage
 import time
-import shutil
-import tempfile
-import re
 import datetime
-import xml.sax as sax
 import raven
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(name)s - %(levelname)s - %(message)s'
 main_log_level = logging.INFO
 logfile = "/var/log/plutoscripts/premiere_get_referenced_media.log"
-RAVEN_DSN = 'https://12f1b44035ff41769d830b3b7a74de74:782294aa890245c4b4685cd20bd2af64@sentry.multimedia.theguardian.com/15'
 #End configurable parameters
 
 global vs_pathmap
 vs_pathmap = {}
 
-
-class InvalidDataError(StandardError):
-    pass
-
-class NoMediaError(StandardError):
-    pass
-
-class PremiereSAXHandler(sax.ContentHandler):
-    def startDocument(self):
-        self.media_references = []
-        self.render_files = []
-        self.uuid = ""
-        self.version = ""
-        self.logger = logging.getLogger('PremiereSAXHandler')
-        self.logger.setLevel(logging.WARNING)
-        self.tag_tree = []
-        self._buffer = ""
-        self._in_media_ref = False
-        pass
-
-    def startElement(self, name, attrs):
-        #self.logger.debug("startElement got {0} with {1}".format(name,attrs))
-        self.tag_tree.append(name)
-        try:
-            if name == "PremiereData":
-                try:
-                    self.version = int(attrs['Version'])
-                except ValueError:
-                    self.version = attrs['Version']
-            elif name == "RootProjectItem":
-                try:
-                    self.uuid = attrs['ObjectUID']
-                except KeyError:
-                    pass
-            elif name == "ActualMediaFilePath":
-                #pprint(self.tag_tree)
-                if self.tag_tree[-2] == 'Media':
-                    self._in_media_ref = True
-        except KeyError:
-            #pprint((name, attrs.__dict__))
-            #print self.tag_tree[-1]
-            pass
-
-    def endElement(self, name):
-        #self.logger.debug("endElement for {0}".format(name))
-        self.tag_tree.pop()
-        if name == 'ActualMediaFilePath':
-            self.media_references.append(self._buffer)
-            self._buffer = ""
-            self._in_media_ref = False
-
-    def characters(self, content):
-        if self._in_media_ref:
-            #self.logger.debug(content)
-            self._buffer += content
-
-    def endDocument(self):
-        is_preview = re.compile(r'\.PRV/')
-        n=0
-        for ref in self.media_references:
-            if is_preview.search(ref):
-                self.render_files.append(ref)
-                del self.media_references[n]
-            else:
-                n+=1
-
-
-class PremiereProject:
-    def __init__(self):
-        self._parser = sax.make_parser()
-
-        self.xmltree = None
-        self.filename = None
-        self.isCompressed = False
-        self._sax_handler = PremiereSAXHandler()
-        self._parser.setContentHandler(self._sax_handler)
-
-    def load(self, filename, useTempFile=True):
-
-        tf = None
-        if useTempFile:
-            lg.debug("PremiereProject::load - requested to use temporary file")
-            tf = tempfile.NamedTemporaryFile(suffix="prproj",delete=False)
-            tempname = tf.name
-            lg.debug("PremiereProject::load - temporary file is %s" % tempname)
-            shutil.copy2(filename,tempname)
-            filename = tempname
-
-        lg.debug("PremiereProject::load - loading %s" % filename)
-        try:
-            self.isCompressed = True
-            f = gzip.open(filename, "rb")
-            self._parser.parse(f)
-            f.close()
-        except IOError:  #if gzip doesn't want to read it, then try as a plain file...
-            lg.warning("Open with gzip failed, trying standard file")
-            self.isCompressed = False
-            f = open(filename, "rb")
-            self._parser.parse(f)
-            f.close()
-        if tf is not None:
-            lg.debug("PremiereProject::load - removing temporary file %s" % tf.name)
-            os.unlink(tf.name)
-
-    def getParticulars(self):
-        if self._sax_handler.uuid == "" or self._sax_handler.version == "":
-
-            raise InvalidDataError("no uuid or version in premiere project")
-        return {'uuid': self._sax_handler.uuid, 'version': self._sax_handler.version}
-
-    def getReferencedMedia(self, fullData=False):
-        if len(self._sax_handler.media_references) == 0:
-            raise NoMediaError("Premiere project does not have any media file references")
-        return self._sax_handler.media_references
-
-
-def id_from_filepath(filepath):
-    filename = os.path.basename(filepath)
-    matches = re.search(u'^(.*)\.[^\.]+$', filename)
-    if matches is not None:
-        return matches.group(1)
-    else:
-        return None
-
-
-def partial_path_match(source_path, target_path, limit_len):
-    source_segments = source_path.split(os.path.sep)
-    target_segments = target_path.split(os.path.sep)
-    return do_partial_match(source_segments, target_segments, limit_len)
-
-
-def do_partial_match(source_segments, target_segments, limit_len, start=0):
-    if len(target_segments) > len(source_segments):
-        n = len(source_segments)
-        target_segments = target_segments[0:n]
-        
-    for n in range(start, limit_len):
-        target_path = os.path.sep.join(target_segments[n:])
-        source_path = os.path.sep.join(source_segments[n:])
-        if source_path.endswith('/') and not target_path.endswith('/'):
-            target_path += '/'
-        lg.debug("comparing %s to %s" % (source_path, target_path))
-        if source_path == target_path:
-            return True
-
-
-def find_vsstorage_for(filepath, vs_pathmap, limit_len):
-    pathsegments = filter(None, filepath.split(os.path.sep))  #filter out null values
-
-    for key, value in vs_pathmap.items():
-        source_segments = filter(None, key.split(os.path.sep))
-        #must start matching at 1, as the first part is /srv on the server and /Volumes on the client
-        if do_partial_match(source_segments, pathsegments, limit_len, start=1):
-            return value
-
-
-def find_item_id_for_path(path):
-    storage = find_vsstorage_for(path, vs_pathmap,50)
-    fileref = storage.fileForPath(path)
-    return fileref.memberOfItem
-
-
-def remove_path_chunks(filepath, to_remove):
-    pathsegments = filepath.split(os.path.sep)
-    return os.path.sep.join(pathsegments[to_remove:])
-
-
-def process_premiere_project(filepath, db=None, cfg=None):
-    global vs_pathmap
-    lg.debug("---------------------------------")
-    lg.info("Premiere project: %s" % filepath)
-
-    collection_vsid = id_from_filepath(filepath)
-    lg.info("Project's Vidispine ID: %s" % collection_vsid)
-    vsproject = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
-                             passwd=cfg.value('vs_password'))
-    vsproject.setName(collection_vsid)  #we don't need the actual metadata so don't bother getting it.
-
-    #pprint(vs_pathmap)
-
-    pp = PremiereProject()
-    try:
-        pp.load(filepath)
-    except Exception as e:
-        lg.error("Unable to read '%s': %s" % (filepath,e.message))
-        lg.error(traceback.format_exc())
-        print "Unable to read '%s': %s" % (filepath,e.message)
-        traceback.print_exc()
-        raven_client.captureException()
-        return (0,0,0)
-
-    lg.debug("determining project details and updating database...")
-    try:
-        projectDetails = pp.getParticulars()
-
-        project_id = db.upsert_edit_project(os.path.dirname(filepath), os.path.basename(filepath),
-                                        projectDetails['uuid'], projectDetails['version'],
-                                        desc="Adobe Premiere Project",
-                                        opens_with="/Applications/Adobe Premiere Pro CC 2014/Adobe Premiere Pro CC 2014.app/Contents/MacOS/Adobe Premiere Pro CC 2014")
-    except ValueError as e:
-        project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
-        lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
-        lg.error(traceback.format_exc())
-        raven_client.captureException()
-        return (0,0,0)
-    except KeyError as e:
-        project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
-        db.insert_sysparam("warning","Unable to read project file '{0}' - {1}".format(filepath, str(e)))
-        lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
-        lg.error(traceback.format_exc())
-        raven_client.captureException()
-        return (0,0,0)
-
-    except InvalidDataError as e:
-        db.insert_sysparam("warning","Corrupted project file: {0} {1}".format(filepath,unicode(e)))
-        raven_client.captureException()
-        return (0,0,0)
-
-    total_files = 0
-    no_vsitem = 0
-    not_in_db = 0
-
-    lg.debug("looking for referenced media....")
-    for filepath in pp.getReferencedMedia():
-        total_files += 1
-        server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
-
-        vsid = db.get_vidispine_id(server_path)
-        # this call will return None if the file is not from an asset folder, e.g. newswire
-        if vsid is None:
-            try:
-                vsid = find_item_id_for_path(server_path)
-                if vsid is None:
-                    lg.error("File {0} is found by Vidispine but has not been imported yet".format(server_path))
-                    continue
-            except VSNotFound:
-                lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
-                continue
-            
-        item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
-        item.populate(vsid,specificFields=['gnm_asset_category'])
-
-        try:
-            if item.get('gnm_asset_category').lower() == 'branding':
-                lg.info("File %s is branding, not adding to project" % (filepath, ))
-                if "Internet Downloads" in server_path:
-                    vsproject.set_metadata({'gnm_project_invalid_media_paths': server_path}, mode="add")
-                continue
-        except AttributeError:
-            lg.warning("File %s has no value for gnm_asset_catetory" % (filepath, ))
-
-        lg.debug("Got filepath %s" % filepath)
-        fileid = db.fileId(server_path)
-        if fileid:
-            try:
-                db.link_file_to_edit_project(fileid, project_id)
-                lg.debug("Linked file %s with id %s to project %s" % (filepath, fileid, project_id))
-            except AlreadyLinkedError:
-                lg.info("File %s with id %s is already linked to project %s" % (filepath, fileid, project_id))
-                continue
-        else:
-            not_in_db += 1
-            lg.warning("File %s could not be found in the database" % filepath)
-            continue
-        n = 0
-        found = False
-        
-        #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
-        #in the parent collections list (cached on the item record) without lifting any more info out of VS
-        if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
-            lg.info("File %s is already in project %s" % (filepath,vsproject.name))
-            continue
-        
-        vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
-
-    lg.info(
-        "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (
-        total_files, no_vsitem, not_in_db))
-    return (total_files, no_vsitem, not_in_db)
 
 #START MAIN
 
@@ -324,14 +36,14 @@ parser.add_option("-n", "--not-incremental", dest="fullrun", default=False,
                   help="do not do an incremental run (default behaviour) but re-inspect every available project in the system")
 (options, args) = parser.parse_args()
 
-raven_client = raven.Client(dsn=RAVEN_DSN)
-
 #Step two. Read config
 
 if options.configfile:
     cfg = configfile(options.configfile)
 else:
     cfg = configfile("/etc/asset_folder_importer.cfg")
+
+raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
@@ -438,7 +150,7 @@ try:
             lg.debug("last modified time: %s" % file_mtime)
             total_projects += 1
             try:
-                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, db=db, cfg=cfg)
+                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, raven_client=raven_client, db=db, cfg=cfg)
                 lg.info(
                     "Processed Premiere project %s which had %d references, of which %d were not in Vidispine yet and %d were not in the Asset Importer database" %
                     (filepath, project_refs, no_vsitem, not_in_db))
@@ -469,8 +181,6 @@ try:
 
 except Exception as e:
     raven_client.captureException()
-    #lg.error(str(e.__class__) + ": " + e.message, exc_info=True)
-    #print str(e.__class__) + ": " + e.message
     lg.error(traceback.format_exc())
 
     msgstring = "{0}: {1}".format(str(e.__class__), e.message)
