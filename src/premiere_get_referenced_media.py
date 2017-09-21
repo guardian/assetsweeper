@@ -274,9 +274,12 @@ def process_premiere_project(filepath, db=None, cfg=None):
             
         item = VSItem(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
         item.populate(vsid,specificFields=['gnm_asset_category'])
+
         try:
             if item.get('gnm_asset_category').lower() == 'branding':
                 lg.info("File %s is branding, not adding to project" % (filepath, ))
+                if "Internet Downloads" in server_path:
+                    vsproject.set_metadata({'gnm_project_invalid_media_paths': server_path}, mode="add")
                 continue
         except AttributeError:
             lg.warning("File %s has no value for gnm_asset_catetory" % (filepath, ))
