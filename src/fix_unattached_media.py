@@ -14,7 +14,7 @@ from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreRe
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
-raven_client = raven.Client('***REMOVED***')
+raven_client = raven.Client('***YOUR DSN HERE***')
 
 path_map = None
 
