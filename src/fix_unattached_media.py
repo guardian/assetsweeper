@@ -78,7 +78,7 @@ try:
     processed = 0
     for row in cursor:
         counter +=1
-        if processed>=limit:
+        if limit is not None and processed>=limit:
             logger.info("Finishing after processing limit of {0} items".format(processed))
             break
             
