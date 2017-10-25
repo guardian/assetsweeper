@@ -6,9 +6,9 @@ How to run locally
 
 You should run:
 
- \$ source setup_env.sh
+ `\$ source setup_env.sh`
  
-in order to set up the PYTHONPATH that will allow gnmvidispine and asset_folder_importer to run.
+in order to set up the PYTHONPATH that will allow `gnmvidispine` and `asset_folder_importer` to run.
 
 Requirements:
 -------------
@@ -26,7 +26,7 @@ On Linux, installing Postgres is usually as simple as:
 or 
      ```$ sudo apt-get install postgresql-server```
  
-On a Mac, I would generally recommend Macports.  Once downloaded and installed (http://www.macports.org), you should be
+On a Mac, I would generally recommend Macports.  Once downloaded and installed (https://www.macports.org), you should be
 able to simply run:
      ``$ sudo port install postgresql91-server postgresql91``
  
@@ -40,7 +40,7 @@ Then, you need to install the database schema.  Assuming that postgres is runnin
     ``$ sudo su postgres -c 'psql < src/asset_folder_importer/schema_update_1.sql``
     
 **Note** - the Postgres management commands (psql, initdb, creatuser, etc.) may not be in your PATH.
-On my Mac, I have to prepend the installation path (/opt/local/lib/postgresql91/bin/) to make the above commands work.
+On my Mac, I have to prepend the installation path (`/opt/local/lib/postgresql91/bin/`) to make the above commands work.
 
 Step two - set up a Virtualenv
 ------------------------------
