@@ -14,8 +14,6 @@ from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreRe
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
-raven_client = raven.Client('***YOUR DSN HERE***')
-
 path_map = None
 
 logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
@@ -44,7 +42,8 @@ try:
     (options, args) = parser.parse_args()
 
     cfg = configfile(options.configfile)
-     
+    raven_client = raven.Client(cfg.value("sentry_dsn"))
+
     reattach_pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,config=cfg,
                                raven_client=raven_client)
 
@@ -74,11 +73,16 @@ try:
         
     cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL")
 
+    try:
+        index_name = cfg.value("portal_index_name")
+    except KeyError:
+        index_name = "portal_5"
+
     counter = 0
     processed = 0
     for row in cursor:
         counter +=1
-        if processed>=limit:
+        if limit is not None and processed>=limit:
             logger.info("Finishing after processing limit of {0} items".format(processed))
             break
             
@@ -87,7 +91,7 @@ try:
             continue #the item has not yet been imported
         logger.info("Got {0} with size {1} [item {2} of {3}]".format(row[0],row[1],counter,cursor.rowcount))
         try:
-            collections = lookup_portal_item(esclient,row[0])
+            collections = lookup_portal_item(esclient, index_name, row[0])
         except PortalItemNotFound:
             logger.warning("Portal item {0} was not found in the index".format(row[0]))
             collections = lookup_vidispine_item(vscredentials, row[0])
