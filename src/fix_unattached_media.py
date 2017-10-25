@@ -14,8 +14,6 @@ from asset_folder_importer.fix_unattached_media.pre_reattach_thread import PreRe
 from asset_folder_importer.fix_unattached_media import *
 from asset_folder_importer.threadpool import ThreadPool
 
-raven_client = raven.Client('***YOUR DSN HERE***')
-
 path_map = None
 
 logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
@@ -44,7 +42,8 @@ try:
     (options, args) = parser.parse_args()
 
     cfg = configfile(options.configfile)
-     
+    raven_client = raven.Client(cfg.value("sentry_dsn"))
+
     reattach_pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,config=cfg,
                                raven_client=raven_client)
 
