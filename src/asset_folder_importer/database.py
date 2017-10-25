@@ -19,7 +19,12 @@ class ArgumentError(StandardError):
 
 
 class AlreadyLinkedError(StandardError):
-    pass
+    def __init__(self, fileid, vsprojectid):
+        self.fileid = fileid
+        self.vsprojectid = vsprojectid
+
+    def __str__(self):
+        return "File with id %s is already linked to project %s" % (self.fileid, self.vsprojectid)
 
 
 class importer_db:
@@ -365,7 +370,7 @@ class importer_db:
         result=cursor.fetchone()
 
         if result[0]>0:
-            raise AlreadyLinkedError("File id %s is already linked to project %s" % (fileid,projectid))
+            raise AlreadyLinkedError(fileid,projectid)
 
         cursor.execute("insert into edit_project_clips (file_ref,project_ref) values (%s,%s)", (fileid,projectid))
 
