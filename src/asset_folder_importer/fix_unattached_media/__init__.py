@@ -2,7 +2,7 @@ from urllib3.exceptions import ReadTimeoutError
 from elasticsearch.exceptions import ConnectionTimeout
 from collection_lookup import CollectionLookup
 from gnmvidispine.vs_item import VSItem,VSNotFound
-from exceptions import *
+from .exceptions import *
 import logging
 import re
 from time import sleep
@@ -13,10 +13,11 @@ logger.level=logging.DEBUG
 id_xplodr = re.compile(r'^(?P<site>\w{2})-(?P<numeric>\d+)')
 
 
-def lookup_portal_item(esclient, item_id):
+def lookup_portal_item(esclient, index_name, item_id):
     """
     Returns an array of the collections that this item belongs to, according to Portal's ES index.
     :param esclient: Elastic search client object to use
+    :param index_name: Name of the index to search within
     :param item_id: item ID to look for
     :return: array of collection names that this belongs to. Blank array if it does not belong.
     """
@@ -36,7 +37,7 @@ def lookup_portal_item(esclient, item_id):
     wait_time = 2
     while True:
         try:
-            result = esclient.search(index='portal_1', doc_type='item', body=query)
+            result = esclient.search(index=index_name, doc_type='item', body=query)
             break
         except ReadTimeoutError as e:
             logger.warning(str(e))

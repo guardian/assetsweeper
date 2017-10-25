@@ -73,6 +73,11 @@ try:
         
     cursor.execute("select imported_id,size,filepath from files where imported_id is not NULL")
 
+    try:
+        index_name = cfg.value("portal_index_name")
+    except KeyError:
+        index_name = "portal_5"
+
     counter = 0
     processed = 0
     for row in cursor:
@@ -86,7 +91,7 @@ try:
             continue #the item has not yet been imported
         logger.info("Got {0} with size {1} [item {2} of {3}]".format(row[0],row[1],counter,cursor.rowcount))
         try:
-            collections = lookup_portal_item(esclient,row[0])
+            collections = lookup_portal_item(esclient, index_name, row[0])
         except PortalItemNotFound:
             logger.warning("Portal item {0} was not found in the index".format(row[0]))
             collections = lookup_vidispine_item(vscredentials, row[0])
