@@ -61,7 +61,7 @@ def innerMainFunc(cfg,db,limit):
         t.start()
         threads.append(t)
 
-    for fileref in db.filesForVSID(None):
+    for fileref in db.filesForVSID(None, recent_first=True):
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
