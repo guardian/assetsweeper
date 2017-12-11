@@ -104,7 +104,7 @@ def process_premiere_fileref(filepath, server_path, vsproject, db=None, cfg=None
     process an individual file reference from a project
     :param filepath: file path to process
     :param server_path: file path as it is seen from the server
-    :param vsproject: vidispine collection object representing the VS project
+    :param project_database_id: database id of the premiere project
     :param db: assetimporter database object
     :param cfg: assetimporter configuration object
     :return: item reference or None
@@ -202,7 +202,7 @@ def process_premiere_project(filepath, raven_client, db=None, cfg=None):
         lg.debug("Looking up {0}".format(filepath))
         server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
         try:
-            item=process_premiere_fileref(filepath, server_path, vsproject, db=db, cfg=cfg)
+            item=process_premiere_fileref(filepath, server_path, project_id, db=db, cfg=cfg)
             #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
             #in the parent collections list (cached on the item record) without lifting any more info out of VS
             if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
