@@ -77,7 +77,7 @@ def find_vsstorage_for(filepath, vs_pathmap, limit_len):
             return value
 
 
-def find_item_id_for_path(path):
+def find_item_id_for_path(path, vs_pathmap):
     """
     Gets the Vidispine item ID for the given filepath. Raises VSNotFound if the path does not exist in VS
     :param path: path to check
@@ -99,7 +99,7 @@ def remove_path_chunks(filepath, to_remove):
     return os.path.sep.join(pathsegments[to_remove:])
 
 
-def process_premiere_fileref(filepath, server_path, vsproject, db=None, cfg=None):
+def process_premiere_fileref(filepath, server_path, vsproject, vs_pathmap=None, db=None, cfg=None):
     """
     process an individual file reference from a project
     :param filepath: file path to process
@@ -112,7 +112,7 @@ def process_premiere_fileref(filepath, server_path, vsproject, db=None, cfg=None
     vsid = db.get_vidispine_id(server_path)
     # this call will return None if the file is not from an asset folder, e.g. newswire
     if vsid is None:
-        vsid = find_item_id_for_path(server_path)
+        vsid = find_item_id_for_path(server_path, vs_pathmap)
         if vsid is None:
             lg.error("File {0} is found by Vidispine but has not been imported yet".format(server_path))
             return None
@@ -136,7 +136,7 @@ def process_premiere_fileref(filepath, server_path, vsproject, db=None, cfg=None
     return item
 
 
-def process_premiere_project(filepath, raven_client, db=None, cfg=None):
+def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, cfg=None):
     """
     Main function to process a Premiere project file
     :param filepath: file path to process
@@ -144,7 +144,6 @@ def process_premiere_project(filepath, raven_client, db=None, cfg=None):
     :param cfg: asset importer configuration object
     :return:
     """
-    global vs_pathmap
     lg.debug("---------------------------------")
     lg.info("Premiere project: %s" % filepath)
 
@@ -202,7 +201,7 @@ def process_premiere_project(filepath, raven_client, db=None, cfg=None):
         lg.debug("Looking up {0}".format(filepath))
         server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
         try:
-            item=process_premiere_fileref(filepath, server_path, project_id, db=db, cfg=cfg)
+            item=process_premiere_fileref(filepath, server_path, project_id, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
             #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
             #in the parent collections list (cached on the item record) without lifting any more info out of VS
             if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
