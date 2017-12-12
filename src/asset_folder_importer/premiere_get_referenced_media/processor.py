@@ -198,8 +198,14 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     lg.debug("looking for referenced media....")
     for filepath in pp.getReferencedMedia():
         total_files += 1
-        lg.debug("Looking up {0}".format(filepath))
-        server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
+        try:
+            lg.debug("Looking up {0}".format(filepath))
+        except UnicodeEncodeError:
+            lg.debug("Looking up {0}".format(filepath.encode('utf-8')))
+        try:
+            server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
+        except UnicodeDecodeError:
+            server_path = re.sub(u'^/Volumes', '/srv', filepath.decode('utf-8'))
         try:
             item=process_premiere_fileref(filepath, server_path, project_id, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
             #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
