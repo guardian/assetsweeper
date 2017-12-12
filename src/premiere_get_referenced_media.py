@@ -150,7 +150,7 @@ try:
             lg.debug("last modified time: %s" % file_mtime)
             total_projects += 1
             try:
-                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, raven_client=raven_client, db=db, cfg=cfg)
+                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, raven_client=raven_client, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
                 lg.info(
                     "Processed Premiere project %s which had %d references, of which %d were not in Vidispine yet and %d were not in the Asset Importer database" %
                     (filepath, project_refs, no_vsitem, not_in_db))
