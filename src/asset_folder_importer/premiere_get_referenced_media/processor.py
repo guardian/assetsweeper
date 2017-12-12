@@ -129,8 +129,8 @@ def process_premiere_fileref(filepath, server_path, vsproject, vs_pathmap=None, 
     lg.debug("Got filepath %s" % filepath)
     fileid = db.fileId(server_path)
     if fileid:
-        db.link_file_to_edit_project(fileid, vsproject.name)
-        lg.debug("Linked file %s with id %s to project %s" % (filepath, fileid, vsproject.name))
+        db.link_file_to_edit_project(fileid, vsproject)
+        lg.debug("Linked file %s with id %s to project with database ID %s" % (filepath, fileid, vsproject))
     else:
         raise NotInDatabaseError
     return item
