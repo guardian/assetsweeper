@@ -19,7 +19,7 @@ from Queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
 
-MAXTHREADS = 4
+MAXTHREADS = 8
 #suid perl script so we don't need to run the whole shebang as root
 PERMISSIONSCRIPT = "/usr/bin/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
@@ -61,7 +61,7 @@ def innerMainFunc(cfg,db,limit):
         t.start()
         threads.append(t)
 
-    for fileref in db.filesForVSID(None):
+    for fileref in db.filesForVSID(None, recent_first=True):
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))

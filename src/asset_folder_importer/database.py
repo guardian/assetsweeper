@@ -453,10 +453,12 @@ class importer_db:
             return result[0]
         return None
 
-    def filesForVSID(self,vsid=None,showIgnore=False):
+    def filesForVSID(self,vsid=None,showIgnore=False,recent_first=False):
         queryAppend = " and ignore!=TRUE"
-        if showIgnore==True:
+        if showIgnore:
             queryAppend = ""
+        if recent_first:
+            queryAppend += " order by ctime desc"
         if vsid is not None:
             sqlcmd = "select * from files where imported_id='{0}'{1}".format(vsid,queryAppend)
         else:
