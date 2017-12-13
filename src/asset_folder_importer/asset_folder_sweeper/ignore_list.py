@@ -22,7 +22,8 @@ class IgnoreList(object):
         '\.pek$',
         '_synctemp', #this is created by PluralEyes
         '\.cfa$',
-        '\.aep Logs'
+        '\.aep Logs',
+        'Adobe Premiere Pro Video Previews'
     ]
 
     def __init__(self):
