@@ -198,8 +198,14 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     lg.debug("looking for referenced media....")
     for filepath in pp.getReferencedMedia():
         total_files += 1
-        lg.debug("Looking up {0}".format(filepath))
-        server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
+        try:
+            lg.debug("Looking up {0}".format(filepath))
+        except UnicodeEncodeError:
+            lg.debug("Looking up {0}".format(filepath.encode('utf-8')))
+        try:
+            server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
+        except UnicodeDecodeError:
+            server_path = re.sub(u'^/Volumes', '/srv', filepath.decode('utf-8'))
         try:
             item=process_premiere_fileref(filepath, server_path, project_id, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
             #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
@@ -210,17 +216,26 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
 
             vsproject.addToCollection(item=item)    #this call will apparently succeed if the item is already added to said collection, but it won't be added twice.
         except VSNotFound:
-            lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
+            try:
+                lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
+            except UnicodeEncodeError:
+                lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path.encode('utf-8')))
             if "Internet Downloads" in filepath:
                 #note - this could raise a 400 exception IF there is a conflict with something else trying to add info to the same field
                 vsproject.set_metadata({'gnm_project_invalid_media_paths': filepath}, mode="add")
             continue
         except NotInDatabaseError:
             not_in_db += 1
-            lg.warning("File %s could not be found in the database" % filepath)
+            try:
+                lg.warning("File %s could not be found in the database" % filepath)
+            except UnicodeEncodeError:
+                lg.warning("File %s could not be found in the database" % filepath.encode('utf-8'))
             continue
         except AlreadyLinkedError as e:
-            lg.info("File %s with id %s is already linked to project %s" % (filepath, e.fileid, e.vsprojectid))
+            try:
+                lg.info("File %s with id %s is already linked to project %s" % (filepath, e.fileid, e.vsprojectid))
+            except UnicodeEncodeError:
+                lg.info("File %s with id %s is already linked to project %s" % (filepath.encode('utf-8'), e.fileid, e.vsprojectid))
             continue
 
     lg.info(
