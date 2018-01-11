@@ -10,7 +10,8 @@ machine:
     DB_PASS:
     DB_NAME: circle_test
   pre:
-    - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev
+    - sudo apt-get -y update
+    - sudo apt-get -y install rpm  libsasl2-dev libldap2-dev libssl-dev libxml2-utils
 
 checkout:
   post:
