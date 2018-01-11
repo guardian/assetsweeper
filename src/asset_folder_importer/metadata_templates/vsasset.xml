@@ -13,7 +13,7 @@ Original Owner -->
         </field>
         <field>
             <name>gnm_asset_category</name>
-            <value>Rushes</value>
+            <value>{{ category|e }}</value>
         </field>
         {% endif %}
 

@@ -130,14 +130,15 @@ class ImporterThread(threading.Thread):
                 potentialFile = re.sub(u'\.[^\.]+', fileAppend, filename)
                 yield potentialFile
             
-    def render_xml(self, fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata, filepath):
+    def render_xml(self, fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata, filepath, media_category="Rushes"):
         try:
             mdXML = self.mdTemplate.render({'fileref'       : fileref,
                                             'preluderef'    : preludeclip,
                                             'preludeproject': preludeproject,
                                             'xdcamref'      : xdcamref,
                                             'cubaseref'     : cubaseref,
-                                            'externalmeta'  : externaldata})
+                                            'externalmeta'  : externaldata,
+                                            'category': media_category})
         except AttributeError as e:
             if 'to_vs_xml' in str(e):  # catch the case where we got no external metadata
                 mdXML = self.mdTemplate.render({'fileref'       : fileref,
@@ -145,7 +146,8 @@ class ImporterThread(threading.Thread):
                                                 'preludeproject': preludeproject,
                                                 'xdcamref'      : xdcamref,
                                                 'cubaseref'     : cubaseref,
-                                                'externalmeta'  : ""})
+                                                'externalmeta'  : "",
+                                                'category': media_category})
             else:
                 raise
     
@@ -430,11 +432,22 @@ class ImporterThread(threading.Thread):
             
             try:
                 self.logger.info("Attempting to import...")
+                path_parts = fileref['filepath'].split(os.sep)
                 try:
-                    fileref['likely_project'] = fileref['filepath'].split(os.sep)[7]
-                except Exception:
+                    fileref['likely_project'] = path_parts[7]
+                except IndexError:
                     fileref['likely_project'] = "unknown project"
-                
+
+                try:
+                    working_group = path_parts[5]
+                    self.logger.info("Working group is {0}".format(working_group))
+                    if working_group=="Branding":
+                        media_category = "Branding"
+                    else:
+                        media_category = "Rushes"
+                except IndexError:
+                    media_category = "Rushes"
+
                 xdImporter = None
                 xdcamref = None
                 fileref['xdcam_card'] = False
@@ -451,7 +464,6 @@ class ImporterThread(threading.Thread):
                         self.db.insert_sysparam("warning", msgstring)
                         self.db.insert_sysparam("warning", str(e))
                         self.db.commit()
-                        # exit(1)
                 else:
                     potentialXML = re.sub(u'\.[^\.]+', 'M01.XML',
                                           os.path.join(fileref['filepath'], fileref['filename']))
@@ -480,7 +492,8 @@ class ImporterThread(threading.Thread):
                 
                 externaldata = self.get_external_supplier_metadata(filepath)
                 
-                mdXML = self.render_xml(fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata, filepath)
+                mdXML = self.render_xml(fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata,
+                                        filepath, media_category=media_category)
                 
                 import_tags = self.import_tags_for_fileref(fileref)
                 

@@ -1,12 +1,11 @@
 from __future__ import absolute_import
 import unittest
 import os
-import threading
 import mock
 import logging
-import httplib
 import json
 import gnmvidispine.vs_storage
+from mock import MagicMock, patch
 
 class TestImporterThread(unittest.TestCase):
     def __init__(self, *args,**kwargs):
@@ -204,3 +203,119 @@ class TestImporterThread(unittest.TestCase):
             self.assertGreaterEqual(time()-start_time,4)    #should have taken at least 4 seconds
             mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW",jobMetadata={'gnm_app': 'vsingester'})
             fake_job.abort.assert_called_once_with()
+
+    xmlns = "{http://xml.vidispine.com/schema/vidispine}"
+
+    def _safe_get_xmlnode(self, fieldnode):
+        node = fieldnode.find('{0}name'.format(self.xmlns))
+        return node.text
+
+    def _find_xml_field(self, parsed_xml, fieldname):
+        node_list = filter(lambda node: self._safe_get_xmlnode(node)==fieldname, parsed_xml.findall("{0}timespan/{0}field".format(self.xmlns)))
+        return node_list
+
+    def _field_node_values(self, fieldnode):
+        return map(lambda valuenode: valuenode.text, fieldnode.findall("{0}value".format(self.xmlns)))
+
+    def test_md_render(self):
+        """
+        render_xml should provide an XML MetadataDocument for Vidispine
+        :return:
+        """
+        from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
+        from gnmvidispine.vs_storage import VSFile
+        from datetime import datetime
+        from asset_folder_importer.database import importer_db
+        import xml.etree.cElementTree as ET
+
+        mock_db = MagicMock(target=importer_db)
+        mock_fileref = MagicMock(target=VSFile)
+        mock_fileref.mtime = datetime(2018,01,04,15,32,00)
+        mock_fileref.ctime = datetime(2018,01,04,15,30,00)
+
+        i=ImporterThread(None,None,self.FakeConfig({
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+        }),dbconn=mock_db)
+
+        result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file")
+
+        parsed_xml = ET.fromstring(result)
+        category_node = self._find_xml_field(parsed_xml,"gnm_asset_category")
+        self.assertEqual(self._field_node_values(category_node[0]),["Rushes"])
+
+    def test_md_render_altcat(self):
+        """
+        render_xml should honour requests for alternative categories
+        :return:
+        """
+        from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
+        from gnmvidispine.vs_storage import VSFile
+        from datetime import datetime
+        from asset_folder_importer.database import importer_db
+        import xml.etree.cElementTree as ET
+
+        mock_db = MagicMock(target=importer_db)
+        mock_fileref = MagicMock(target=VSFile)
+        mock_fileref.mtime = datetime(2018,01,04,15,32,00)
+        mock_fileref.ctime = datetime(2018,01,04,15,30,00)
+
+        i=ImporterThread(None,None,self.FakeConfig({
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+        }),dbconn=mock_db)
+
+        result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file",media_category="Branding")
+
+        parsed_xml = ET.fromstring(result)
+        category_node = self._find_xml_field(parsed_xml,"gnm_asset_category")
+        self.assertEqual(self._field_node_values(category_node[0]),["Branding"])
+
+    def test_attempt_file_import_brandingcat(self):
+        """
+        When importing something from a branding folder, attempt_file_import should ensure that the file is, in fact,
+        tagged as branding
+        :return:
+        """
+        from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_storage import VSStorage, VSFile
+        from datetime import datetime
+        import dateutil.parser
+
+        mock_db = MagicMock(target=importer_db)
+        mock_db.get_prelude_data = MagicMock(return_value=None)
+
+        mock_file = MagicMock(target=VSFile)
+        mock_file.importToItem = MagicMock()
+        mock_file.memberOfItem = None
+
+        mock_storage = MagicMock(target=VSStorage)
+        mock_storage.fileForPath = MagicMock(return_value=mock_file)
+
+        mock_fileref = {
+            'id': 376423,
+            'filepath': "/srv/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada",
+            'filename': "fancy title.aep",
+            'mtime': dateutil.parser.parse("2017-04-28 09:18:53+01"),
+            'ctime': dateutil.parser.parse("2017-09-06 20:56:29.96+01"),
+            'atime': dateutil.parser.parse("2017-07-20 11:56:38.12+01"),
+            'imported_id': None,
+            'imported_at': None,
+            'last_seen': datetime.now(),
+            'size': 12344567789,
+            'owner': 803,
+            'gid': 3476423,
+            'prelude_ref': None,
+            'ignore': False,
+            'mime_type': 'application/x-aftereffects-project',
+            'asset_folder': None
+        }
+
+        i=ImporterThread(None,None,self.FakeConfig({
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+        }),dbconn=mock_db)
+        i.st = mock_storage
+        i.ask_pluto_for_projectid = MagicMock(return_value=None) #there will be no record of this as an asset folder
+
+        i.attempt_file_import(mock_fileref, mock_fileref['filepath'], "/srv/Multimedia2/Media Production/Assets")
+        mock_db.get_prelude_data.assert_called_once_with(None) #not ingested through prelude
+        mock_file.importToItem.assert_called_with('<?xml version="1.0" encoding="UTF-8"?>\n<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),\nOriginal Owner -->\n<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">\n  <group>Asset</group>\n  <timespan start="-INF" end="+INF">\n    <field>\n      <name>title</name>\n      <value>fancy title.aep (yadayada)</value>\n    </field>\n    <field>\n      <name>gnm_asset_category</name>\n      <value>Branding</value>\n    </field>\n    <field>\n      <name>gnm_asset_status</name>\n      <value>Ready for Editing</value>\n    </field>\n    <field>\n      <name>gnm_asset_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_filename</name>\n      <value>/srv/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep</value>\n    </field>\n    <field>\n      <name>gnm_asset_file_last_modified</name>\n      <value>2017-04-28T09:18:53Z</value>\n    </field>\n    <field>\n      <name>gnm_rushes_general_original_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_createdby</name>\n      <value>803</value>\n    </field>\n    <!--date from fileref-->\n    <field>\n      <name>gnm_asset_file_created</name>\n      <value>2017-09-06T20:56:29Z</value>\n    </field>\n  </timespan>\n</MetadataDocument>\n', jobMetadata={'gnm_app': 'vsingester'}, priority='LOW', tags=None)
