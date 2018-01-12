@@ -23,7 +23,8 @@ class IgnoreList(object):
         '_synctemp', #this is created by PluralEyes
         '\.cfa$',
         '\.aep Logs',
-        'Adobe Premiere Pro Video Previews'
+        'Adobe Premiere Pro Video Previews',
+        'ShaderCache'
     ]
 
     def __init__(self):
