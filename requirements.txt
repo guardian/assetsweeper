@@ -5,3 +5,4 @@ elasticsearch==1.4.0
 jinja2==2.7.3
 psycopg2==2.7.3.2
 PyYAML==3.11
+python-dateutil==2.6.1
