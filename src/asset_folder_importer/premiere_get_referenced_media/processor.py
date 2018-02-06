@@ -84,7 +84,11 @@ def find_item_id_for_path(path, vs_pathmap):
     :return: item ID to which this file is attached.
     """
     storage = find_vsstorage_for(path, vs_pathmap,50)
-    fileref = storage.fileForPath(path)
+    try:
+        fileref = storage.fileForPath(path)
+    except HTTPError as e:
+        lg.error(str(e))
+        raise
     return fileref.memberOfItem
 
 
