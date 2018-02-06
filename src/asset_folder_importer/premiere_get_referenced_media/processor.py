@@ -88,6 +88,7 @@ def find_item_id_for_path(path, vs_pathmap):
         fileref = storage.fileForPath(path)
     except HTTPError as e:
         lg.error(str(e))
+        raise
     return fileref.memberOfItem
 
 
