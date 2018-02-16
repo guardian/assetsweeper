@@ -55,10 +55,19 @@ class ImporterThread(threading.Thread):
                             passwd=cfg.value('vs_password'))
         if storageid is not None:
             self.st.populate(storageid)
-        self.db = dbconn if dbconn is not None else importer_db(__version__, hostname=cfg.value('database_host'),
+
+        importer_db_worked = 0
+        while importer_db_worked == 0:
+            try:
+                self.db = dbconn if dbconn is not None else importer_db(__version__, hostname=cfg.value('database_host'),
                                                                 port=cfg.value('database_port'),
                                                                 username=cfg.value('database_user'),
                                                                 password=cfg.value('database_password'))
+            except InternalError:
+                sleep(20)
+            else:
+                importer_db_worked = 1
+
         self.found = 0
         self.withItems = 0
         self.imported = 0
