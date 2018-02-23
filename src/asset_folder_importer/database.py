@@ -38,6 +38,7 @@ class importer_db:
         self.conn = psycopg2.connect(database=dbname,user=username,password=password,host=hostname,port=portnum)
         self.clientversion=clientversion
 
+    def setup_upsert_function(self):
         sqlcmd = """create or replace function upsert_file(fp text, fn text) returns INTEGER as
         $$
         begin
