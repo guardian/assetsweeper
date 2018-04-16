@@ -32,8 +32,6 @@ def find_files(cfg,db):
 
     n=0
     for dirpath,dirnames,filenames in os.walk(startpath):
-        #print dirpath
-        #pprint(filenames)
         for name in filenames:
             if name.startswith('.'):
                 continue

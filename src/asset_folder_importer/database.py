@@ -386,10 +386,27 @@ class importer_db:
             self.insert_sysparam("warning",str(e))
 
     def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
+        """
+        Adds a file to the database with the given stats.  If a file exists already in the db, leave the record alone
+        :param filepath: path of the file on-disk
+        :param filename: name of the file
+        :param statinfo: information returned from stat()
+        :param mimetype: MIME type of the file
+        :param ignore: should the file be ignored by other scripts
+        :return: None
+        """
         cursor=self.conn.cursor()
         self.conn.commit()
         safe_filepath = filepath.decode('utf-8', 'strict')
         safe_filename = filename.decode('utf-8', 'strict')
+
+        #does the file already exist? If so leave it (avoiding database bloat)
+        cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath,filename))
+        result = cursor.fetchone()
+        if result:
+            logging.debug("File {0}/{1} already exists with id {2}, not touching it".format(filepath, filename, result[0]))
+            return
+
         try:
             cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
         except psycopg2.IntegrityError as e:
