@@ -9,6 +9,7 @@ import datetime
 import time
 import logging
 from asset_folder_importer.asset_folder_sweeper.find_files import find_files
+import raven
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
@@ -50,6 +51,8 @@ elif options.loglevel==3:
 else:
     main_log_level=logging.ERROR
 
+raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
+
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
 else:
@@ -58,10 +61,14 @@ else:
 #Now connect to db
 logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 
-db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
-db.check_schema_22()
-lastruntime = db.lastrun_endtime()
-lastruntimestamp = 0
+try:
+    db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
+    db.check_schema_22()
+    lastruntime = db.lastrun_endtime()
+    lastruntimestamp = 0
+except Exception as e:
+    raven_client.captureException()
+    raise
 
 if lastruntime is None:
     break_lock = False
@@ -98,17 +105,23 @@ else:
 
 logging.info("Last run of the script was at %s." % lastruntime)
 
-db.start_run(__scriptname__)
+try:
+    db.start_run(__scriptname__)
+except Exception as e:
+    raven_client.captureException()
+    raise
 
 try:
     db.purge_system_messages(since=timedelta(days=int(cfg.value('system_message_purge_time',noraise=False))))
 except KeyError as e:
     logging.warning("Unable to purge old system messages as system_message_purge_time is not present in config file")
+    raven_client.captureException()
 except StandardError as e:
     logging.error("Unable to purge old system messages because of problem: {0}".format(traceback.format_exc()))
+    raven_client.captureException()
 
 try:
-    n=find_files(cfg,db)
+    n=find_files(cfg,db,raven_client=raven_client)
     db.insert_sysparam("file_records",n)
     db.insert_sysparam("exit","success")
     logging.info("Run completed. Found {0} file records.\n".format(n))
@@ -119,5 +132,6 @@ except Exception as e:
     db.insert_sysparam("traceback",traceback.format_exc())
     logging.error(traceback.format_exc())
     db.commit()
+    raven_client.captureException()
 
 db.end_run(status=None)
