@@ -413,14 +413,6 @@ class importer_db:
             self.conn.rollback()
             cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (safe_filename, safe_filepath))
 
-        result=cursor.fetchone()
-        id=result[0]
-        try:
-            if result[1] == True:
-                ignore = True
-        except Exception as e:
-            logging.warning("An error occurred: " + str(e) + " trying to get ignore flag")
-
         sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
             mt="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_mtime)+" * INTERVAL '1 second')",
             at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
