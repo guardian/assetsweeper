@@ -409,21 +409,25 @@ class importer_db:
 
         try:
             cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
+            inserted_record_id = cursor.fetchone()[0]
         except psycopg2.IntegrityError as e:
+            #this should normally not happen, but it's possible for a race condition to develop
+            #between the SELECT check and the INSERT command if multiple instances are running so it's kept to deal with that
             self.conn.rollback()
             cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (safe_filename, safe_filepath))
+            inserted_record_id = cursor.fetchone()[0]
 
         sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
             mt="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_mtime)+" * INTERVAL '1 second')",
             at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
             ct="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_ctime)+" * INTERVAL '1 second')",
         )
-        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,id))
+        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,inserted_record_id))
 
         if ignore is not None:
             cursor.execute("update files set ignore={ign} where id={id}".format(
                 ign=ignore,
-                id=id
+                id=inserted_record_id
             ))
         self.conn.commit()
 
