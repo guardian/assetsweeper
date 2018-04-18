@@ -24,16 +24,20 @@ def check_mime(fullpath,db):
     return statinfo, mt
 
 
-def find_files(cfg,db):
-    #Step three. Find all relevant files and bung 'em in the database
+def find_files(cfg,db, raven_client=None):
+    """
+    Find all relevant files and bung 'em in the database
+    :param cfg: configuration object
+    :param db: database object
+    :param raven_client: raven client object for Sentry
+    :return:
+    """
     startpath = cfg.value('start_path',noraise=False)
 
     logger.info("Running from '%s'" % startpath)
 
     n=0
     for dirpath,dirnames,filenames in os.walk(startpath):
-        #print dirpath
-        #pprint(filenames)
         for name in filenames:
             if name.startswith('.'):
                 continue
@@ -41,16 +45,29 @@ def find_files(cfg,db):
             shouldIgnore = global_ignore_list.should_ignore(dirpath, name)
 
             fullpath = os.path.join(dirpath,name)
+            raven_client.user_context({
+                "dirpath": dirpath,
+                "name": name,
+                "shouldIgnore": shouldIgnore
+            })
+
             logger.debug("Attempting to add file at path: '%s'" % fullpath)
             try:
                 statinfo, mt = check_mime(fullpath,db)
+                raven_client.user_context({
+                    "statinfo": statinfo,
+                    "mt": mt
+                })
+
                 db.upsert_file_record(dirpath,name,statinfo,mt,ignore=shouldIgnore)
 
             except UnicodeDecodeError as e:
                 db.insert_sysparam("warning",str(e))
+                raven_client.captureException()
                 logging.error(str(e))
             except OSError as e:
                 db.insert_sysparam("warning",str(e))
+                raven_client.captureException()
                 if e.errno == 2: #No Such File Or Directory
                     db.update_file_record_gone(dirpath,name)
             n+=1

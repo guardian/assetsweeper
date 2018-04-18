@@ -386,35 +386,48 @@ class importer_db:
             self.insert_sysparam("warning",str(e))
 
     def upsert_file_record(self,filepath,filename,statinfo,mimetype,ignore=None):
+        """
+        Adds a file to the database with the given stats.  If a file exists already in the db, leave the record alone
+        :param filepath: path of the file on-disk
+        :param filename: name of the file
+        :param statinfo: information returned from stat()
+        :param mimetype: MIME type of the file
+        :param ignore: should the file be ignored by other scripts
+        :return: None
+        """
         cursor=self.conn.cursor()
         self.conn.commit()
         safe_filepath = filepath.decode('utf-8', 'strict')
         safe_filename = filename.decode('utf-8', 'strict')
+
+        #does the file already exist? If so leave it (avoiding database bloat)
+        cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath,filename))
+        result = cursor.fetchone()
+        if result:
+            logging.debug("File {0}/{1} already exists with id {2}, not touching it".format(filepath, filename, result[0]))
+            return
+
         try:
             cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
+            inserted_record_id = cursor.fetchone()[0]
         except psycopg2.IntegrityError as e:
+            #this should normally not happen, but it's possible for a race condition to develop
+            #between the SELECT check and the INSERT command if multiple instances are running so it's kept to deal with that
             self.conn.rollback()
             cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (safe_filename, safe_filepath))
-
-        result=cursor.fetchone()
-        id=result[0]
-        try:
-            if result[1] == True:
-                ignore = True
-        except Exception as e:
-            logging.warning("An error occurred: " + str(e) + " trying to get ignore flag")
+            inserted_record_id = cursor.fetchone()[0]
 
         sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
             mt="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_mtime)+" * INTERVAL '1 second')",
             at="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_atime)+" * INTERVAL '1 second')",
             ct="(SELECT TIMESTAMP WITH TIME ZONE 'epoch' + "+str(statinfo.st_ctime)+" * INTERVAL '1 second')",
         )
-        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,id))
+        cursor.execute(sqlcmd, (statinfo.st_size,statinfo.st_uid,statinfo.st_gid,mimetype,inserted_record_id))
 
         if ignore is not None:
             cursor.execute("update files set ignore={ign} where id={id}".format(
                 ign=ignore,
-                id=id
+                id=inserted_record_id
             ))
         self.conn.commit()
 
