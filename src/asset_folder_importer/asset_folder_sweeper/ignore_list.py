@@ -17,6 +17,13 @@ class IgnoreList(object):
         '^\.',  #should ignore a literal dot, but only if it follows a /
         '\.pk$',
         '\.PFL$',
+        '\.js$',
+        '\.JS$',
+        '\.html$',
+        '\.htm$',
+        '\.HTM$',
+        '\.HTML$',
+        'KP-\d+\.[^\.]+$',
         '\.PFR$',   #Cubase creates these filetypes
         '\.peak$',
         '\.pek$',
