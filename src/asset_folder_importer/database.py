@@ -323,10 +323,16 @@ class importer_db:
             raise ArgumentError("Filename %s does not appear to have a file extension" % filename)
 
         typenum=self.project_type_for_extension(file_xtn,desc=desc,opens_with=opens_with)
+        #does the project entry already exist? If so leave it (avoiding database bloat)
+        cursor.execute("SELECT id FROM edit_projects WHERE filename=%s AND filepath=%s", (filename, filepath, ))
+        result = cursor.fetchone()
+        if result is not None:
+            logging.debug("Edit project {0}/{1} already exists in database, not touching it".format(filepath, filename))
+            return
 
         try:
             cursor.execute("insert into edit_projects (filename,filepath,type,lastseen,valid) values (%s,%s,%s,now(),true) returning id", (filename,filepath,typenum))
-        except psycopg2.IntegrityError as e:
+        except psycopg2.IntegrityError as e: #this is kept in case of race conditions
             self.conn.rollback()
             cursor.execute("update edit_projects set lastseen=now(), valid=true where filename=%s and filepath=%s returning id", (filename,filepath))
 
@@ -403,7 +409,7 @@ class importer_db:
         #does the file already exist? If so leave it (avoiding database bloat)
         cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath,filename))
         result = cursor.fetchone()
-        if result:
+        if result is not None:
             logging.debug("File {0}/{1} already exists with id {2}, not touching it".format(filepath, filename, result[0]))
             return
 
@@ -554,6 +560,13 @@ class importer_db:
         #if uuid is None:
         #    raise DataError("You need to pass a valid uuid")
 
+        #does the project entry already exist? If so leave it (avoiding database bloat)
+        cursor.execute("SELECT id FROM prelude_projects WHERE filename=%s AND filepath=%s", (filename, path, ))
+        result = cursor.fetchone()
+        if result is not None:
+            logging.debug("Prelude project {0}/{1} already exists in database, not touching it".format(path, filename))
+            return
+
         try:
             sqlcmd = """insert into prelude_projects (filepath,filename,uuid,version,clips,lastseen)
                         values (%s,%s,%s,%s,%s,now()) returning id"""
@@ -584,6 +597,13 @@ class importer_db:
         cursor=self.conn.cursor()
 
         self.conn.commit()
+
+        #does the prelude clip entry already exist? If so leave it (avoiding database bloat)
+        cursor.execute("SELECT id FROM edit_projects WHERE asset_name=%s AND asset_type=%s", (asset_name, asset_type, ))
+        result = cursor.fetchone()
+        if result is not None:
+            logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name, asset_type))
+            return
 
         try:
             sqlcmd="""insert into prelude_clips (asset_name,asset_relink_skipped,asset_type,class_id,created_date,drop_frame,
