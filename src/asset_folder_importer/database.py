@@ -328,7 +328,7 @@ class importer_db:
         result = cursor.fetchone()
         if result is not None:
             logging.debug("Edit project {0}/{1} already exists in database, not touching it".format(filepath, filename))
-            return
+            return result[0]
 
         try:
             cursor.execute("insert into edit_projects (filename,filepath,type,lastseen,valid) values (%s,%s,%s,now(),true) returning id", (filename,filepath,typenum))
@@ -565,7 +565,7 @@ class importer_db:
         result = cursor.fetchone()
         if result is not None:
             logging.debug("Prelude project {0}/{1} already exists in database, not touching it".format(path, filename))
-            return
+            return result[0]
 
         try:
             sqlcmd = """insert into prelude_projects (filepath,filename,uuid,version,clips,lastseen)
@@ -603,7 +603,7 @@ class importer_db:
         result = cursor.fetchone()
         if result is not None:
             logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name, asset_type))
-            return
+            return result[0]
 
         try:
             sqlcmd="""insert into prelude_clips (asset_name,asset_relink_skipped,asset_type,class_id,created_date,drop_frame,
