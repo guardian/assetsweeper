@@ -31,7 +31,8 @@ class IgnoreList(object):
         '\.cfa$',
         '\.aep Logs',
         'Adobe Premiere Pro Video Previews',
-        'ShaderCache'
+        'ShaderCache',
+        '.photolibrary'
     ]
 
     def __init__(self):

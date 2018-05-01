@@ -18,6 +18,7 @@ class TestIgnoreList(unittest.TestCase):
         self.assertTrue(test_list.should_ignore("/path/to/some/assets","something.aep 48000.cfa"))
         self.assertTrue(test_list.should_ignore("/path/to/some/Adobe Premiere Pro Video Previews/subpath","yadayadayada.xxx"))
         self.assertTrue(test_list.should_ignore("/path/to/some/ShaderCache/subpath","yadayadayada.xxx"))
+        self.assertTrue(test_list.should_ignore("/path/to/some/text.photolibrary/subpath","yadayadayada.xxx"))
 
     def test_should_not_match(self):
         from asset_folder_importer.asset_folder_sweeper.ignore_list import IgnoreList
