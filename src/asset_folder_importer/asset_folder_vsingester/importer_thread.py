@@ -286,13 +286,15 @@ class ImporterThread(threading.Thread):
                 self.db.insert_sysparam("warning", msgstring)
         self.logger.info("importer_thread completed")
     
-    def setPermissions(self, fileref):
+    def check_file_set_permissions(self, fileref):
         """
         Calls the suid helper script to set permissions on the given file
         :param fileref: dictonary containing 'filepath' and 'filename' keys identifying the file to set
         :return: None
         """
         file = os.path.join(fileref['filepath'], fileref['filename'])
+        if not os.path.exists(file):
+            raise FileDoesNotExist(file)
         from subprocess import call
         try:
             call(["/bin/sudo", self._permissionscript, file])
@@ -497,7 +499,7 @@ class ImporterThread(threading.Thread):
                 
                 import_tags = self.import_tags_for_fileref(fileref)
                 
-                self.setPermissions(fileref)
+                self.check_file_set_permissions(fileref)
 
                 self.do_real_import(vsfile,filepath,mdXML,import_tags)
                 
@@ -524,7 +526,10 @@ class ImporterThread(threading.Thread):
                     
                 if not self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), preludeproject, cubaseref, vsfile):
                     return (found, withItems, imported)
-                
+
+            except FileDoesNotExist as e:
+                self.logger.error("File {0} cannot be found on-disk, marking as deleted".format(str(e)))
+                self.db.mark_id_as_deleted(fileref['id'])
             except VSJobFailed as e:
                 msgstring = "WARNING: Vidispine import job failed: %s" % str(e)
                 self.logger.error(msgstring)
