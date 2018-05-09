@@ -566,9 +566,12 @@ class ImporterThread(threading.Thread):
                                                                                                  metafile))
                 self.logger.info("Attempting to import %s" % metafile)
                 try:
-                    vsfile.memberOfItem.debug = True
-                    vsfile.memberOfItem.importSidecar(metafile)
-                    return True
+                    if vsfile.memberOfItem is None:
+                        self.logger.warning("Trying to import sidecar {0} for file {1}, file {1} is not a member of any item".format(metafile, vsfile.name))
+                        return False
+                    else:
+                        vsfile.memberOfItem.importSidecar(metafile)
+                        return True
                 except VSNotFound as e:
                     self.logger.warning("Unable to find sidecar '%s': %s" % (metafile, e.message))
         return False
