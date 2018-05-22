@@ -39,6 +39,7 @@ try:
     parser.add_option("-c","--credentials", dest="configfile",
                       help="path to assetimporter config", default="/etc/asset_folder_importer.cfg")
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
+    parser.add_option("--nofix", dest="nofix", action="store_true", help="don't attempt to re-attach items that are not attached, just store stats")
     (options, args) = parser.parse_args()
 
     cfg = configfile(options.configfile)
@@ -48,7 +49,7 @@ try:
                                raven_client=raven_client)
 
     pre_pool = ThreadPool(PreReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options, config=cfg,
-                          output_queue=reattach_pool.queue)
+                          output_queue=reattach_pool.queue, raven_client=raven_client)
     
     esclient = elasticsearch.Elasticsearch(cfg.value('portal_elastic_host'), timeout=120)
 
@@ -107,6 +108,8 @@ try:
                 
             continue
         for c in collections:
+            if row[1] is None:
+                continue
             if not c in totals:
                 totals[c] = float(row[1])/(1024.0**2)
             else:
