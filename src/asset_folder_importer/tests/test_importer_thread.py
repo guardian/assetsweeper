@@ -271,14 +271,14 @@ class TestImporterThread(unittest.TestCase):
 
     def test_attempt_file_import_brandingcat(self):
         """
-        When importing something from a branding folder, attempt_file_import should ensure that the file is, in fact,
-        tagged as branding
+        When importing something from a branding folder, attempt_file_import should ensure that the file is, in fact, tagged as branding
         :return:
         """
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
         from gnmvidispine.vs_storage import VSStorage, VSFile
         from datetime import datetime
+        from os import makedirs
         import dateutil.parser
 
         mock_db = MagicMock(target=importer_db)
@@ -291,9 +291,14 @@ class TestImporterThread(unittest.TestCase):
         mock_storage = MagicMock(target=VSStorage)
         mock_storage.fileForPath = MagicMock(return_value=mock_file)
 
+        if not os.path.exists("/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/"):
+            makedirs("/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/")
+        with open("/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep","w") as f:
+            f.write("test file\n")
+
         mock_fileref = {
             'id': 376423,
-            'filepath': "/srv/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada",
+            'filepath': "/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada",
             'filename': "fancy title.aep",
             'mtime': dateutil.parser.parse("2017-04-28 09:18:53+01"),
             'ctime': dateutil.parser.parse("2017-09-06 20:56:29.96+01"),
@@ -318,4 +323,4 @@ class TestImporterThread(unittest.TestCase):
 
         i.attempt_file_import(mock_fileref, mock_fileref['filepath'], "/srv/Multimedia2/Media Production/Assets")
         mock_db.get_prelude_data.assert_called_once_with(None) #not ingested through prelude
-        mock_file.importToItem.assert_called_with('<?xml version="1.0" encoding="UTF-8"?>\n<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),\nOriginal Owner -->\n<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">\n  <group>Asset</group>\n  <timespan start="-INF" end="+INF">\n    <field>\n      <name>title</name>\n      <value>fancy title.aep (yadayada)</value>\n    </field>\n    <field>\n      <name>gnm_asset_category</name>\n      <value>Branding</value>\n    </field>\n    <field>\n      <name>gnm_asset_status</name>\n      <value>Ready for Editing</value>\n    </field>\n    <field>\n      <name>gnm_asset_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_filename</name>\n      <value>/srv/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep</value>\n    </field>\n    <field>\n      <name>gnm_asset_file_last_modified</name>\n      <value>2017-04-28T09:18:53Z</value>\n    </field>\n    <field>\n      <name>gnm_rushes_general_original_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_createdby</name>\n      <value>803</value>\n    </field>\n    <!--date from fileref-->\n    <field>\n      <name>gnm_asset_file_created</name>\n      <value>2017-09-06T20:56:29Z</value>\n    </field>\n  </timespan>\n</MetadataDocument>\n', jobMetadata={'gnm_app': 'vsingester'}, priority='LOW', tags=None)
+        mock_file.importToItem.assert_called_with('<?xml version="1.0" encoding="UTF-8"?>\n<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),\nOriginal Owner -->\n<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">\n  <group>Asset</group>\n  <timespan start="-INF" end="+INF">\n    <field>\n      <name>title</name>\n      <value>fancy title.aep (yadayada)</value>\n    </field>\n    <field>\n      <name>gnm_asset_category</name>\n      <value>Branding</value>\n    </field>\n    <field>\n      <name>gnm_asset_status</name>\n      <value>Ready for Editing</value>\n    </field>\n    <field>\n      <name>gnm_asset_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_filename</name>\n      <value>/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep</value>\n    </field>\n    <field>\n      <name>gnm_asset_file_last_modified</name>\n      <value>2017-04-28T09:18:53Z</value>\n    </field>\n    <field>\n      <name>gnm_rushes_general_original_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_createdby</name>\n      <value>803</value>\n    </field>\n    <!--date from fileref-->\n    <field>\n      <name>gnm_asset_file_created</name>\n      <value>2017-09-06T20:56:29Z</value>\n    </field>\n  </timespan>\n</MetadataDocument>\n', jobMetadata={'gnm_app': 'vsingester'}, priority='LOW', tags=None)
