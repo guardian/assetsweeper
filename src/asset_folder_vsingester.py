@@ -61,7 +61,7 @@ def innerMainFunc(cfg,db,limit):
         t.start()
         threads.append(t)
 
-    for fileref in db.filesForVSID(None, recent_first=True):
+    for fileref in db.filesForVSID(None, filepath=options.path ,recent_first=True):
         if fileref['filename'].endswith('.cpr'): #don't import Cubase project files as items, they're already counted at the NAS
             db.update_file_ignore(fileref['id'],True)
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
@@ -104,6 +104,7 @@ def innerMainFunc(cfg,db,limit):
 parser = OptionParser()
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
 parser.add_option("-f","--force", dest="force", help="run even if it appears that another instance is already running")
+parser.add_option("-p","--path", dest="path", help="only import files that are at this (absolute) path or its descendants")
 parser.add_option("-l","--limit", dest="limit", help="stop after attempting to import this many files")
 (options, args) = parser.parse_args()
 
