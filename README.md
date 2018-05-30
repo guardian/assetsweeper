@@ -33,11 +33,14 @@ able to simply run:
 Next, you will need to run initdb and any other commands that the setup program tells you too.
 
 Next, set up a user.  I recommend using this username, as the schema files automatically grant permissions to it:
-    ``$ sudo su postgres -c 'createuser assetimporter``
+    ``$ sudo -u postgres 'createuser assetimporter``
     
+Then, create the database:
+    ``$ sudo -u postgres 'createdb asset_folder_importer -O assetimporter``
+
 Then, you need to install the database schema.  Assuming that postgres is running as the postgres user, run:
-    ``$ sudo su postgres -c 'psql < src/asset_folder_importer/asset_folder_importer_database.sql``
-    ``$ sudo su postgres -c 'psql < src/asset_folder_importer/schema_update_1.sql``
+    ``$ sudo -u postgres 'psql asset_folder_importer < src/asset_folder_importer/asset_folder_importer_database.sql``
+    ``$ sudo -u postgres 'psql asset_folder_importer < src/asset_folder_importer/schema_update_1.sql``
     
 **Note** - the Postgres management commands (psql, initdb, creatuser, etc.) may not be in your PATH.
 On my Mac, I have to prepend the installation path (`/opt/local/lib/postgresql91/bin/`) to make the above commands work.
