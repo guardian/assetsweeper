@@ -156,6 +156,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     vsproject = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
                              passwd=cfg.value('vs_password'))
     vsproject.setName(collection_vsid)  #we don't need the actual metadata so don't bother getting it.
+    vsproject.set_metadata({'gnm_project_invalid_media_paths': ''}, mode="add")
 
     pp = PremiereProject()
     try:
@@ -224,9 +225,19 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
                 lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
             except UnicodeEncodeError:
                 lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path.encode('utf-8')))
-            if "Internet Downloads" in filepath:
+            if ("Internet Downloads" in filepath) or ("Editorial Users" in filepath):
+                filepath_doctored = filepath.replace(',', '')
                 #note - this could raise a 400 exception IF there is a conflict with something else trying to add info to the same field
-                vsproject.set_metadata({'gnm_project_invalid_media_paths': filepath}, mode="add")
+                vsprojectmetadata = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
+                                         passwd=cfg.value('vs_password'))
+                vsprojectmetadata.populate(collection_vsid)
+                current_value_of_field = vsprojectmetadata.get('gnm_project_invalid_media_paths')
+                if current_value_of_field == None:
+                    vsproject.set_metadata({'gnm_project_invalid_media_paths': filepath_doctored}, mode="add")
+                else:
+                    paths_list = current_value_of_field.split(",")
+                    if filepath_doctored not in paths_list:
+                        vsproject.set_metadata({'gnm_project_invalid_media_paths': '{0},{1}'.format(current_value_of_field,filepath_doctored)}, mode="add")
             continue
         except NotInDatabaseError:
             not_in_db += 1
