@@ -225,7 +225,13 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
                 lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path))
             except UnicodeEncodeError:
                 lg.error("File {0} could not be found in either Vidispine or the asset importer database".format(server_path.encode('utf-8')))
-            if ("Internet Downloads" in filepath) or ("Editorial Users" in filepath):
+
+            invalid_path_data = ['Internet Downloads', 'Editorial Users']
+
+            if cfg.value('invalid_path_strings'):
+                invalid_path_data = cfg.value('invalid_path_strings').split(',')
+
+            if any(x in filepath for x in invalid_path_data):
                 filepath_doctored = filepath.replace(',', '')
                 #note - this could raise a 400 exception IF there is a conflict with something else trying to add info to the same field
                 vsprojectmetadata = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
