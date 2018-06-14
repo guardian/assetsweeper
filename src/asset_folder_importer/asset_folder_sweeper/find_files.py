@@ -71,7 +71,8 @@ def find_files(cfg,db, raven_client=None):
             except OSError as e:
                 if e.errno == 2: #No Such File Or Directory
                     db.insert_sysparam("warning", "File {0} was missing".format(dirpath))
-                    db.mark_id_as_deleted(dirpath,name)
+                    file_id_to_mark = db.fileId('{0}/{1}'.format(dirpath, name))
+                    db.mark_id_as_deleted(file_id_to_mark)
                 else:
                     db.insert_sysparam("warning", "Could not stat {0}: {1}".format(dirpath, str(e)))
                     raven_client.captureException()
