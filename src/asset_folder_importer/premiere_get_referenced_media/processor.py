@@ -243,7 +243,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
                 else:
                     paths_list = current_value_of_field.split(",")
                     if filepath_doctored not in paths_list:
-                        vsproject.set_metadata({'gnm_project_invalid_media_paths': '{0},{1}'.format(current_value_of_field,filepath_doctored)}, mode="add")
+                        vsproject.set_metadata({'gnm_project_invalid_media_paths': '{0},{1}'.format(current_value_of_field.encode('utf-8'),filepath_doctored.encode('utf-8'))}, mode="add")
             continue
         except NotInDatabaseError:
             not_in_db += 1
