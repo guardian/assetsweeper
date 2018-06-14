@@ -1,4 +1,7 @@
 import subprocess
+import logging
+
+logger = logging.getLogger(__name__)
 
 def posix_get_mime(filepath,db):
     try:
@@ -7,6 +10,6 @@ def posix_get_mime(filepath,db):
             return out.rstrip('\n')
         return None
     except Exception as e:
-        print "Error using /usr/bin/file to get MIME type: %s" % e.message
+        logger.error("Error using /usr/bin/file to get MIME type: %s" % e.message)
         db.insert_sysparam("warning","Error using /usr/bin/file to get MIME type: %s" % e.message)
         return None

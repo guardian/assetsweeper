@@ -11,7 +11,6 @@ global_ignore_list = IgnoreList()
 
 def check_mime(fullpath,db):
     statinfo = os.stat(fullpath)
-    pprint(statinfo)
     mt = None
     try:
         (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
@@ -65,11 +64,17 @@ def find_files(cfg,db, raven_client=None):
                 db.insert_sysparam("warning",str(e))
                 raven_client.captureException()
                 logging.error(str(e))
-            except OSError as e:
+            except UnicodeEncodeError as e:
                 db.insert_sysparam("warning",str(e))
                 raven_client.captureException()
+                logging.error(str(e))
+            except OSError as e:
                 if e.errno == 2: #No Such File Or Directory
-                    db.update_file_record_gone(dirpath,name)
+                    db.insert_sysparam("warning", "File {0} was missing".format(dirpath))
+                    db.mark_id_as_deleted(dirpath,name)
+                else:
+                    db.insert_sysparam("warning", "Could not stat {0}: {1}".format(dirpath, str(e)))
+                    raven_client.captureException()
             n+=1
             print "%d files...\r" %n
 
