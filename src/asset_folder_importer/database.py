@@ -473,18 +473,18 @@ class importer_db:
             return result[0]
         return None
 
-    def filesForVSID(self,vsid=None,showIgnore=False,recent_first=False):
+    def filesForVSID(self, vsid=None, filepath=None, showIgnore=False, recent_first=False):
         queryAppend = " and ignore!=TRUE"
         if showIgnore:
             queryAppend = ""
+        if filepath is not None:
+            queryAppend += " and filepath like '{0}%'".format(filepath)
         if recent_first:
             queryAppend += " order by ctime desc"
         if vsid is not None:
             sqlcmd = "select * from files where imported_id='{0}'{1}".format(vsid,queryAppend)
         else:
             sqlcmd = "select * from files where imported_id is NULL" + queryAppend
-
-        print "About to run %s" %sqlcmd
 
         cursor=self.conn.cursor()
         cursor.execute(sqlcmd)
