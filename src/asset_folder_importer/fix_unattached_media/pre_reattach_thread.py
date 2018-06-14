@@ -5,7 +5,7 @@ from asset_folder_importer.fix_unattached_media.collection_lookup import Collect
 from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
 import logging
 import re
-from exceptions import *
+from .exceptions import *
 
 
 class PreReattachThread(Thread):
@@ -109,7 +109,8 @@ class PreReattachThread(Thread):
             except Empty:
                 self.logger.error("Input queue timed out, exiting.")
                 break
-            except Exception:
+            except Exception as e:
+                self.logger.error(str(e))
                 if self.raven_client is not None: self.raven_client.captureException()
                 if self.should_raise: raise
         self.logger.info("Pre-reattach thread terminating")
