@@ -80,7 +80,7 @@ def innerMainFunc(cfg,db,limit, keeplist):
             continue
 
         downcased = fileref['filename'].lower()
-        if keeplist is not None and file_has_any_extension(downcased, keeplist):
+        if keeplist is not None and not file_has_any_extension(downcased, keeplist):
             logging.info("Ignoring file {0}/{1} due to commandline options".format(fileref['filepath'],fileref['filename']))
             continue
 
