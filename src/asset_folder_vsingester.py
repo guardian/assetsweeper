@@ -35,9 +35,21 @@ logfile = "/var/log/plutoscripts/asset_folder_vsingester.log"
 graveyard_folder = "/var/log/plutoscripts/asset_folder_ingester_failed_xml"
 #End configurable parameters
 
+def file_has_any_extension(filename, extensionlist):
+    """
+    Returns True if the provided filename ends with any of the listed extensions
+    :param filename: filename to check
+    :param extensionlist: list of extensions
+    :return: True or False
+    """
+    for xtn in extensionlist:
+        if filename.endswith(xtn):
+            return True
+
+    return False
 
 #This function is the main program, but is contained here to make it easier to catch exceptions
-def innerMainFunc(cfg,db,limit):
+def innerMainFunc(cfg,db,limit, keeplist):
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
@@ -67,13 +79,16 @@ def innerMainFunc(cfg,db,limit):
             logging.info("Ignoring Cubase project %s/%s" % (fileref['filepath'],fileref['filename']))
             continue
 
+        downcased = fileref['filename'].lower()
+        if keeplist is not None and file_has_any_extension(downcased, keeplist):
+            logging.info("Ignoring file {0}/{1} due to commandline options".format(fileref['filepath'],fileref['filename']))
+            continue
+
         filepath = os.path.join(fileref['filepath'],fileref['filename'])
         # we need to remove the part of the filepath that corresponds to the storage path on the server
         for rootpath in possible_roots:
             filepath = re.sub(u'^{0}'.format(rootpath),'',filepath)
-
             n += 1
-
             input_queue.put([fileref,filepath,rootpath])
         if isinstance(limit, int):
             if n > limit:
@@ -106,6 +121,7 @@ parser.add_option("-c","--config", dest="configfile", help="import configuration
 parser.add_option("-f","--force", dest="force", help="run even if it appears that another instance is already running")
 parser.add_option("-p","--path", dest="path", help="only import files that are at this (absolute) path or its descendants")
 parser.add_option("-l","--limit", dest="limit", help="stop after attempting to import this many files")
+parser.add_option("-k","--keeplist", dest="keeplist", help="only import these file extensions. Seperate multuple ones with commas.")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
@@ -142,13 +158,18 @@ else:
 
 db.start_run(__scriptname__)
 
+if options.keeplist is not None:
+    keeplist = options.keeplist.split(',')
+else:
+    keeplist = None
+
 try:
     if options.limit is not None:
         db.insert_sysparam("limit",int(options.limit))
         db.commit()
-        innerMainFunc(cfg,db,int(options.limit))
+        innerMainFunc(cfg,db,int(options.limit), keeplist)
     else:
-        innerMainFunc(cfg, db, None)
+        innerMainFunc(cfg, db, None, keeplist)
     db.insert_sysparam("exit","success")
 except Exception as e:
     logging.error("An error occurred:")
