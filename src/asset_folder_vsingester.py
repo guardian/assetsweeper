@@ -5,16 +5,8 @@ __version__ = 'asset_folder_vsingester $Rev: 273 $ $LastChangedDate: 2015-07-28 
 __scriptname__ = 'asset_folder_vsingester'
 
 #this also requires python-setuptools to be installed
-from gnmvidispine.vs_storage import VSStorage
-from asset_folder_importer.database import importer_db
 from asset_folder_importer.config import configfile
-from pprint import pprint
 from optparse import OptionParser
-import traceback
-import os
-import re
-import time
-import logging
 from Queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
