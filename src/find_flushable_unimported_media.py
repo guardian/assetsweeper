@@ -15,7 +15,7 @@ import traceback
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
 main_log_level = logging.ERROR
-logfile = None
+#logfile = None
 logfile = "/var/log/plutoscripts/find_flushable_unimported_media.log"
 #End configurable parameters
 
@@ -111,6 +111,9 @@ total_notfound_sizes = 0
 assetfolder_not_found = []
 counted_files = 0
 
+fp_toflush = open("to_flush.ls","w")
+fp_noassetfolder = open("no_asset_folder.lst","w")
+
 try:
     for unimported_file in db.filesForVSID(vsid=None):
         counted_files+=1
@@ -118,7 +121,7 @@ try:
 
         if unimported_file['size'] is None:
             logger.warning("{0} has no size registered".format(os.path.join(unimported_file['filepath'],unimported_file['filename'])))
-            continue
+            unimported_file['size'] = 0
 
         total_all_sizes += (unimported_file['size']/1024**3)
 
@@ -128,10 +131,13 @@ try:
             logger.debug("{0}: could not find asset folder".format(fullpath))
             assetfolder_not_found.append(fullpath)
             total_notfound_sizes += (unimported_file['size']/1024**3)
+            fp_noassetfolder.write("{0}\n".format(fullpath))
             continue
 
         if projectinfo['gnm_project_status'] == 'Completed':
+            fullpath = os.path.join(unimported_file['filepath'],unimported_file['filename'])
             total_completed_sizes += (unimported_file['size']/1024**3)
+            fp_toflush.write("{0},{1}".format(projectinfo['collection_id'], fullpath))
 
         logger.info("{0} files: total completed: {1}Gb, total asset folder not found: {2}Gb, total of everything: {3}Gb".format(counted_files, total_completed_sizes, total_notfound_sizes, total_all_sizes))
 
@@ -143,3 +149,6 @@ try:
     logger.info("All done")
 except Exception as e:
     logger.error(traceback.format_exc())
+
+fp_toflush.close()
+fp_noassetfolder.close()
