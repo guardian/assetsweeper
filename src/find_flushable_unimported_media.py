@@ -111,7 +111,7 @@ total_notfound_sizes = 0
 assetfolder_not_found = []
 counted_files = 0
 
-fp_toflush = open("to_flush.ls","w")
+fp_toflush = open("to_flush.lst","w")
 fp_noassetfolder = open("no_asset_folder.lst","w")
 
 try:
@@ -137,7 +137,7 @@ try:
         if projectinfo['gnm_project_status'] == 'Completed':
             fullpath = os.path.join(unimported_file['filepath'],unimported_file['filename'])
             total_completed_sizes += (unimported_file['size']/1024**3)
-            fp_toflush.write("{0},{1}".format(projectinfo['collection_id'], fullpath))
+            fp_toflush.write("{0},{1}\n".format(projectinfo['collection_id'], fullpath))
 
         logger.info("{0} files: total completed: {1}Gb, total asset folder not found: {2}Gb, total of everything: {3}Gb".format(counted_files, total_completed_sizes, total_notfound_sizes, total_all_sizes))
 
