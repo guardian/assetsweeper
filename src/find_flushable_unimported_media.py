@@ -10,12 +10,13 @@ import urllib
 import requests
 import os.path
 import time
+import traceback
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
 main_log_level = logging.ERROR
 logfile = None
-#logfile = "/var/log/plutoscripts/find_flushable_unimported_media.log"
+logfile = "/var/log/plutoscripts/find_flushable_unimported_media.log"
 #End configurable parameters
 
 
@@ -106,28 +107,39 @@ ac = AssetFolderCache(cfg)
 
 total_completed_sizes = 0
 total_all_sizes = 0
+total_notfound_sizes = 0
 assetfolder_not_found = []
 counted_files = 0
 
-for unimported_file in db.filesForVSID(vsid=None):
-    counted_files+=1
-    #logger.debug("{0}".format(os.path.join(unimported_file['filepath'],unimported_file['filename'])))
+try:
+    for unimported_file in db.filesForVSID(vsid=None):
+        counted_files+=1
+        #logger.debug("{0}".format(os.path.join(unimported_file['filepath'],unimported_file['filename'])))
 
-    projectinfo = ac.lookup(unimported_file['filepath'])
-    if projectinfo is None:
-        fullpath = os.path.join(unimported_file['filepath'],unimported_file['filename'])
-        logger.debug("{0}: could not find asset folder".format(fullpath))
-        assetfolder_not_found.append(fullpath)
-        continue
+        if unimported_file['size'] is None:
+            logger.warning("{0} has no size registered".format(os.path.join(unimported_file['filepath'],unimported_file['filename'])))
+            continue
 
-    if projectinfo['gnm_project_status'] == 'Completed':
-        total_completed_sizes += (unimported_file['size']/1024**3)
-    total_all_sizes += (unimported_file['size']/1024**3)
-    logger.info("{0} files: total completed: {1}Gb, total of everything: {2}Gb".format(counted_files, total_completed_sizes, total_all_sizes))
+        total_all_sizes += (unimported_file['size']/1024**3)
 
-if len(assetfolder_not_found)>0:
-    logger.warning("{0} files had unrecognized asset folders:".format(len(assetfolder_not_found)))
-    for path in assetfolder_not_found:
-        logger.warning("\t{0}".format(path))
+        projectinfo = ac.lookup(unimported_file['filepath'])
+        if projectinfo is None:
+            fullpath = os.path.join(unimported_file['filepath'],unimported_file['filename'])
+            logger.debug("{0}: could not find asset folder".format(fullpath))
+            assetfolder_not_found.append(fullpath)
+            total_notfound_sizes += (unimported_file['size']/1024**3)
+            continue
 
-logger.info("All done")
+        if projectinfo['gnm_project_status'] == 'Completed':
+            total_completed_sizes += (unimported_file['size']/1024**3)
+
+        logger.info("{0} files: total completed: {1}Gb, total asset folder not found: {2}Gb, total of everything: {3}Gb".format(counted_files, total_completed_sizes, total_notfound_sizes, total_all_sizes))
+
+    if len(assetfolder_not_found)>0:
+        logger.warning("{0} files had unrecognized asset folders:".format(len(assetfolder_not_found)))
+        for path in assetfolder_not_found:
+            logger.warning("\t{0}".format(path))
+
+    logger.info("All done")
+except Exception as e:
+    logger.error(traceback.format_exc())
