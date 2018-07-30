@@ -35,7 +35,7 @@ class TestProcessPremiereProject(unittest2.TestCase):
                 mock_proj.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
                 from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
                 process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
-                mock_coll_instance.setName.assert_called_with("VX-446")
+                mock_coll_instance.populate.assert_called_with("VX-446")
 
     def test_notify_wrongpath(self):
         """

@@ -155,8 +155,10 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     lg.info("Project's Vidispine ID: %s" % collection_vsid)
     vsproject = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
                              passwd=cfg.value('vs_password'))
-    vsproject.setName(collection_vsid)  #we don't need the actual metadata so don't bother getting it.
-    vsproject.set_metadata({'gnm_project_invalid_media_paths': ''}, mode="add")
+    vsproject.populate(collection_vsid)
+    current_value_of_field = vsproject.get('gnm_project_invalid_media_paths')
+    if current_value_of_field is not None:
+        vsproject.set_metadata({'gnm_project_invalid_media_paths': ''}, mode="add")
 
     pp = PremiereProject()
     try:
