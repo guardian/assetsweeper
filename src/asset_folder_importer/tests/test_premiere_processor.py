@@ -62,7 +62,30 @@ class TestProcessPremiereProject(unittest2.TestCase):
                         from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
 
                         process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
-                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': '/Volumes/Internet Downloads/WRONG FILE.mov'},mode="add")
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': ['/Volumes/Internet Downloads/WRONG FILE.mov']},mode="add")
+
+    def test_no_values(self):
+
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=[])
+        mock_coll_instance.get = MagicMock(return_value=[])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.set_metadata.assert_not_called()
 
     def test_filepath_unicode(self):
         """
