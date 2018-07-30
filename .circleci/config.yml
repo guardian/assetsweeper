@@ -17,7 +17,7 @@ jobs:
     environment:
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
       CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
-      PYTHONPATH: ~/assetsweeper/python_vidi
+      PYTHONPATH: python_vidi
       NOSE_XUNIT_FILE: /tmp/circleci-test-results/nosetests.xml
       NOSE_WITH_XUNIT: true
       DB_HOST: localhost
@@ -26,7 +26,7 @@ jobs:
       DB_PASS: null
       DB_NAME: asset_folder_importer
     docker:
-    - image: 855023211239.dkr.ecr.eu-west-1.amazonaws.com/guardianmultimedia/assetsweeper-build:1
+    - image: 855023211239.dkr.ecr.eu-west-1.amazonaws.com/guardianmultimedia/assetsweeper-build:2
     - image: circleci/postgres:9.3.23-alpine
       environment:
         POSTGRES_USER: ci_test
@@ -40,7 +40,7 @@ jobs:
     # In many cases you can simplify this from what is generated here.
     # 'See docs on artifact collection here https://circleci.com/docs/2.0/artifacts/'
     - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
-    - run: yum -y install which; pip install virtualenv nose pep8
+    - run: pip install virtualenv nose pep8
     # Checkout
     - run: git submodule init
     - run: git submodule update
@@ -62,19 +62,19 @@ jobs:
     - save_cache:
         key: v1-dep-{{ .Branch }}-{{ epoch }}
         paths:
-        # This is a broad list of cache paths to include many possible development environments
-        # You can probably delete some of these entries
-        - vendor/bundle
         - ~/virtualenvs
     # This is based on your 1.0 configuration file or project settings
-    - run: psql circle_test < src/asset_folder_importer/asset_folder_importer_database.sql
-    - run: psql circle_test < src/asset_folder_importer/schema_update_1.sql
+    - run: sleep 10 #ensure that database has started up
+    - run: psql -h localhost -U ci_test asset_folder_importer < src/asset_folder_importer/asset_folder_importer_database.sql
+    - run: psql -h localhost -U ci_test asset_folder_importer < src/asset_folder_importer/schema_update_1.sql
     # Test
-    - run: nosetests -v src/tests
+    - run: nosetests -v src/asset_folder_importer/tests
     # Deployment
     - run: mkdir -p ~/rpmbuild
     - run: chmod a+x *.sh
-    - run: ./buildzip.sh
+    - run:
+        command: ./assetsweeper/buildzip.sh
+        working_directory: ~/guardian
     - run: ./buildbdist.sh
     - run: ./buildrpm.sh
     # Teardown

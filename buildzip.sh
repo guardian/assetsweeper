@@ -4,7 +4,6 @@ echo ----------------------------
 echo Packaging zip
 echo ----------------------------
 
-cd ~
 
 zip -r assetsweeper-${CIRCLE_BUILD_NUM}.zip assetsweeper/
 HASH=$(shasum -a 256 "assetsweeper-${CIRCLE_BUILD_NUM}.zip" | cut -d ' ' -f 1)
