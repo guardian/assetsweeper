@@ -13,6 +13,7 @@ import raven
 from optparse import OptionParser
 import logging
 import sys
+from time import sleep
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
@@ -71,5 +72,8 @@ for fileref in db.deleted_files():
         c=0
         sys.stdout.write("{0}\r".format(n))
     pool.put_queue(fileref)
+    while pool.pending() > 2000:
+        logger.info("{0} items on queue already, waiting 5min for more to process".format(pool.pending()))
+        sleep(240)
 
 logger.info("Sent all deleted media references to queue")
