@@ -57,7 +57,7 @@ class TestUpdateVsThread(unittest.TestCase):
 
         t.update_sentry_context({'key2':'value2'})
         self.assertDictEqual({'key': 'value', 'key2': 'value2'}, t._sentry_context)
-        t._raven_client.setExtraContext.assert_called_once_with({'key': 'value', 'key2': 'value2'})
+        t._raven_client.extra_context.assert_called_once_with({'key': 'value', 'key2': 'value2'})
 
     def test_clear_sentry_context(self):
         """
@@ -83,7 +83,7 @@ class TestUpdateVsThread(unittest.TestCase):
 
         t.clear_sentry_context()
         self.assertDictEqual({}, t._sentry_context)
-        t._raven_client.setExtraContext.assert_called_once_with({})
+        t._raven_client.extra_context.assert_called_once_with({})
 
     def test_process_item(self):
         """

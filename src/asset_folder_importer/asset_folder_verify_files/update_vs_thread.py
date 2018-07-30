@@ -48,7 +48,7 @@ class UpdateVsThread(threading.Thread):
         self._sentry_context.update(data)
 
         if self._raven_client is not None:
-            self._raven_client.setExtraContext(self._sentry_context)
+            self._raven_client.extra_context(self._sentry_context)
             return True
         else:
             return False
@@ -61,7 +61,7 @@ class UpdateVsThread(threading.Thread):
         self._sentry_context = {}
 
         if self._raven_client is not None:
-            self._raven_client.setExtraContext({})
+            self._raven_client.extra_context({})
             return True
         else:
             return False

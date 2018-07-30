@@ -12,6 +12,7 @@ from asset_folder_importer.database import importer_db
 import raven
 from optparse import OptionParser
 import logging
+import sys
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
@@ -20,6 +21,9 @@ logfile = "/var/log/plutoscripts/vs_resync_deleted.log"
 #End configurable parameters
 
 #START MAIN
+logging.basicConfig(level=logging.INFO, format=LOGFORMAT, filename=logfile)
+logger = logging.getLogger(__name__)
+logger.level = logging.DEBUG
 
 #Step one. Commandline args.
 parser = OptionParser()
@@ -39,13 +43,13 @@ else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
 
 #Step three. Set up pools.
-pool = ThreadPool(UpdateVsThread,initial_size=int(options.threads))
+pool = ThreadPool(UpdateVsThread,initial_size=int(options.threads), config=cfg)
 
 raven_client = raven.Client(dsn=cfg.value("sentry_dsn"))
 
 #Step four. Scan the database table and update VS
 #Now connect to db
-logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
+logger.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 
 try:
     db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
@@ -57,9 +61,13 @@ except Exception as e:
     raise
 
 n=0
+c=0
 for fileref in db.deleted_files():
     n+=1
-    print "{0}: {1}".format(n,fileref)
+    c+=1
+    if c>100:
+        c=0
+        sys.stdout.write("{0}\r".format(n))
     pool.put_queue(fileref)
 
-logging.info("Sent all deleted media references to queue")
+logger.info("Sent all deleted media references to queue")
