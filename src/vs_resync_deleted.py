@@ -64,6 +64,8 @@ n=0
 c=0
 for fileref in db.deleted_files():
     n+=1
+    if fileref['ignore']:
+        continue
     c+=1
     if c>100:
         c=0
