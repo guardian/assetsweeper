@@ -5,6 +5,8 @@ __scriptname__ = 'asset_folder_verify_files'
 
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
+from asset_folder_importer.threadpool import ThreadPool
+from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
 from optparse import OptionParser
 import traceback
 from pprint import pprint
@@ -56,25 +58,25 @@ pathreplacematch = re.compile(r'^/srv')
 files_existing = 0
 files_nonexisting = 0
 
+update_vs_pool = ThreadPool(UpdateVsThread)
+
 try:
     for fileref in db.files():
         print("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)),
         filepath = os.path.join(fileref['filepath'],fileref['filename'])
         if os.path.exists(filepath):
-    #        logging.debug("{0} exists".format(filepath))
             files_existing += 1
             continue
 
         altpath = pathreplacematch.sub("/Volumes",filepath)
         if os.path.exists(altpath):
-            #logging.debug("{0} exists".format(filepath))
             files_existing += 1
             continue
 
         logging.info("File {0} does not exist".format(filepath))
         files_nonexisting += 1
         db.mark_id_as_deleted(fileref['id'])
-        #pprint(fileref)
+        update_vs_pool.put_queue(fileref)
 
     logging.info("Found {0} files existing and {1} files missing".format(files_existing,files_nonexisting))
     db.insert_sysparam("existing_files",files_existing)
@@ -83,6 +85,8 @@ try:
     db.end_run(status=None)
 
 except Exception as e:
+    logging.error(str(e))
+    update_vs_pool.safe_terminate()
     db.insert_sysparam("exit","error")
     db.insert_sysparam("error",e.message)
     db.insert_sysparam("traceback",traceback.format_exc())
