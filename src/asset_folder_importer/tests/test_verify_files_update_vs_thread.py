@@ -110,8 +110,9 @@ class TestUpdateVsThread(unittest.TestCase):
 
         with mock.patch('gnmvidispine.vs_storage.VSStorage', return_value=fake_storage):
             t = UpdateVsThread(test_queue, config=fake_config)
-
+            t.check_should_update = mock.MagicMock()
         t.process_item(file_data)
+        t.check_should_update.assert_not_called() #if no indication in file_data don't check for update
         fake_storage.fileForPath.assert_called_once_with("/path/to/my/assets/asset.mxf")
         fake_file.setState.assert_called_once_with("MISSING")
 
@@ -147,6 +148,41 @@ class TestUpdateVsThread(unittest.TestCase):
         fake_file.setState.assert_not_called()
         t._raven_client.captureException.assert_not_called()
 
+    def test_process_item_notneeded(self):
+        """
+        if item check indicates no update needed we should move on
+        :return:
+        """
+        from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
+        from asset_folder_importer.config import configfile
+        from gnmvidispine.vs_storage import VSStorage, VSFile, VSNotFound
+        import raven
+
+        test_queue = Queue()
+        fake_config = mock.MagicMock(target=configfile)
+        fake_config.value = mock.MagicMock(side_effect=self._fake_config_get)
+        fake_file = mock.MagicMock(target=VSFile)
+
+        fake_storage = mock.MagicMock(target=VSStorage)
+        fake_storage.populate = mock.MagicMock()
+        fake_storage.fileForPath = mock.MagicMock(return_value=fake_file)
+
+        file_data = {
+            'filepath': "/path/to/my/assets",
+            'filename': "asset.mxf",
+            'should_verify': 1
+        }
+
+        with mock.patch('gnmvidispine.vs_storage.VSStorage', return_value=fake_storage):
+            t = UpdateVsThread(test_queue, config=fake_config)
+            t._raven_client = mock.MagicMock(target=raven.Client)
+            t.check_should_update = mock.MagicMock(side_effect=UpdateVsThread.NoUpdateNeeded)
+
+        t.process_item(file_data)
+        t.check_should_update.assert_called_once_with("/path/to/my/assets/asset.mxf")
+        fake_file.setState.assert_not_called()
+        t._raven_client.captureException.assert_not_called()
+
     def test_process_item_vsexception(self):
         """
         process_item should log any other vidispine exception
@@ -179,3 +215,87 @@ class TestUpdateVsThread(unittest.TestCase):
         fake_storage.fileForPath.assert_called_once_with("/path/to/my/assets/asset.mxf")
         fake_file.setState.assert_not_called()
         t._raven_client.captureException.assert_called_once()
+
+    def test_should_update(self):
+        """
+        check_should_update should return the fileref if the loaded file state is not 'MISSING'
+        :return:
+        """
+        from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
+        from asset_folder_importer.config import configfile
+        from gnmvidispine.vs_storage import VSStorage, VSFile
+        import raven
+
+        test_queue = Queue()
+        fake_config = mock.MagicMock(target=configfile)
+        fake_config.value = mock.MagicMock(side_effect=self._fake_config_get)
+        fake_file = mock.MagicMock(target=VSFile)
+        fake_file.state = 'ONLINE'
+
+        fake_storage = mock.MagicMock(target=VSStorage)
+        fake_storage.populate = mock.MagicMock()
+        fake_storage.fileForPath = mock.MagicMock(return_value=fake_file)
+
+        with mock.patch('gnmvidispine.vs_storage.VSStorage', return_value=fake_storage):
+            t = UpdateVsThread(test_queue, config=fake_config)
+            t._raven_client = mock.MagicMock(target=raven.Client)
+
+        result = t.check_should_update("/path/to/my/assets/asset.mxf")
+        fake_storage.fileForPath.assert_called_once_with("/path/to/my/assets/asset.mxf")
+        self.assertEqual(result, fake_file)
+
+    def test_should_update_missing(self):
+        """
+        check_should_update should raise NoUpdateNeeded if the file is MISSING
+        :return:
+        """
+        from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
+        from asset_folder_importer.config import configfile
+        from gnmvidispine.vs_storage import VSStorage, VSFile
+        import raven
+
+        test_queue = Queue()
+        fake_config = mock.MagicMock(target=configfile)
+        fake_config.value = mock.MagicMock(side_effect=self._fake_config_get)
+        fake_file = mock.MagicMock(target=VSFile)
+        fake_file.state = 'MISSING'
+
+        fake_storage = mock.MagicMock(target=VSStorage)
+        fake_storage.populate = mock.MagicMock()
+        fake_storage.fileForPath = mock.MagicMock(return_value=fake_file)
+
+        with mock.patch('gnmvidispine.vs_storage.VSStorage', return_value=fake_storage):
+            t = UpdateVsThread(test_queue, config=fake_config)
+            t._raven_client = mock.MagicMock(target=raven.Client)
+
+        with self.assertRaises(UpdateVsThread.NoUpdateNeeded):
+            result = t.check_should_update("/path/to/my/assets/asset.mxf")
+        fake_storage.fileForPath.assert_called_once_with("/path/to/my/assets/asset.mxf")
+
+    def test_should_update_lost(self):
+        """
+        check_should_update should raise NoUpdateNeeded if the file is LOST
+        :return:
+        """
+        from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
+        from asset_folder_importer.config import configfile
+        from gnmvidispine.vs_storage import VSStorage, VSFile
+        import raven
+
+        test_queue = Queue()
+        fake_config = mock.MagicMock(target=configfile)
+        fake_config.value = mock.MagicMock(side_effect=self._fake_config_get)
+        fake_file = mock.MagicMock(target=VSFile)
+        fake_file.state = 'LOST'
+
+        fake_storage = mock.MagicMock(target=VSStorage)
+        fake_storage.populate = mock.MagicMock()
+        fake_storage.fileForPath = mock.MagicMock(return_value=fake_file)
+
+        with mock.patch('gnmvidispine.vs_storage.VSStorage', return_value=fake_storage):
+            t = UpdateVsThread(test_queue, config=fake_config)
+            t._raven_client = mock.MagicMock(target=raven.Client)
+
+        with self.assertRaises(UpdateVsThread.NoUpdateNeeded):
+            result = t.check_should_update("/path/to/my/assets/asset.mxf")
+        fake_storage.fileForPath.assert_called_once_with("/path/to/my/assets/asset.mxf")

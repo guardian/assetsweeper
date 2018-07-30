@@ -5,13 +5,13 @@ import raven
 import traceback
 import os.path
 from gnmvidispine.vidispine_api import VSException, VSNotFound
+
 logger = logging.getLogger(__name__)
 
 
 class UpdateVsThread(threading.Thread):
     """
     A thread that tells Vidispine that a file is now missing
-
     """
     def __init__(self, jobqueue, *args, **kwargs):
         from asset_folder_importer.config import configfile
@@ -66,6 +66,20 @@ class UpdateVsThread(threading.Thread):
         else:
             return False
 
+    class NoUpdateNeeded(StandardError):
+        pass
+
+    def check_should_update(self, filepath):
+        """
+        checks if the current file status does not need updating. Raises self.NoUpdateNeeded if it's not needed.
+        :param filepath: path of file to check
+        :return: VSFile object for 'filepath'
+        """
+        fileref = self._storage.fileForPath(filepath)
+        if fileref.state=='MISSING' or fileref.state=='LOST':
+            raise self.NoUpdateNeeded(filepath)
+        return fileref
+
     def process_item(self, item):
         """
         notify Vidispine about a missing file
@@ -73,9 +87,16 @@ class UpdateVsThread(threading.Thread):
         :return:
         """
         filepath = os.path.join(item['filepath'], item['filename'])
+
         try:
-            fileref = self._storage.fileForPath(filepath)
+            if 'should_verify' in item:
+                fileref = self.check_should_update(filepath)
+            else:
+                fileref = self._storage.fileForPath(filepath)
+            logger.info("{0} ({1}): updating state from {2} to MISSING".format(filepath, fileref.name, fileref.state))
             fileref.setState('MISSING')
+        except self.NoUpdateNeeded:
+            logger.debug("{0}: no update needed".format(filepath))
         except VSNotFound as e:
             logger.warning("Deleted file {0} not found in Vidispine".format(filepath))
         except VSException as e:
