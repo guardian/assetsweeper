@@ -28,7 +28,7 @@ jobs:
       DB_PASS: null
       DB_NAME: asset_folder_importer
     docker:
-    - image: 855023211239.dkr.ecr.eu-west-1.amazonaws.com/guardianmultimedia/assetsweeper-build:3
+    - image: 855023211239.dkr.ecr.eu-west-1.amazonaws.com/guardianmultimedia/assetsweeper-build:4
     - image: circleci/postgres:9.3.23-alpine
       environment:
         POSTGRES_USER: ci_test
