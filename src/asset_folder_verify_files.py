@@ -7,6 +7,7 @@ from asset_folder_importer.database import *
 from asset_folder_importer.config import *
 from asset_folder_importer.threadpool import ThreadPool
 from asset_folder_importer.asset_folder_verify_files.update_vs_thread import UpdateVsThread
+from time import sleep
 from optparse import OptionParser
 import traceback
 from pprint import pprint
@@ -77,6 +78,9 @@ try:
         files_nonexisting += 1
         db.mark_id_as_deleted(fileref['id'])
         update_vs_pool.put_queue(fileref)
+        while update_vs_pool.pending() > 2000:
+            logging.info("{0} items on queue already, waiting 5min for more to process".format(update_vs_pool.pending()))
+            sleep(240)
 
     logging.info("Found {0} files existing and {1} files missing".format(files_existing,files_nonexisting))
     db.insert_sysparam("existing_files",files_existing)
