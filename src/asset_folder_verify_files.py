@@ -82,6 +82,13 @@ try:
             logging.info("{0} items on queue already, waiting 5min for more to process".format(update_vs_pool.pending()))
             sleep(240)
 
+    logging.info("Waiting for queued VS updates to complete....")
+    while update_vs_pool.pending() > 0:
+        logging.info("{0} updates to go".format(update_vs_pool.pending()))
+        sleep(60)
+
+    update_vs_pool.safe_terminate()
+
     logging.info("Found {0} files existing and {1} files missing".format(files_existing,files_nonexisting))
     db.insert_sysparam("existing_files",files_existing)
     db.insert_sysparam("missing_files",files_nonexisting)
