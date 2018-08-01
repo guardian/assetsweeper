@@ -494,8 +494,7 @@ class importer_db:
         for result in cursor:
             yield dict(zip(fields,result))
 
-    #since should be a datetime object
-    def files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
+    def _gen_sqlcmd(self,table, since=None,pathspec=None,namespec=None,reverse_order=False):
         sql_params = []
 
         if since:
@@ -510,7 +509,7 @@ class importer_db:
         if namespec:
             sql_params.append("filename like '%{name}%'".format(name=namespec))
 
-        sqlcmd="select * from files "
+        sqlcmd="select * from {0} ".format(table)
         if len(sql_params) >0:
             sqlcmd+="where "
             for arg in sql_params:
@@ -522,6 +521,11 @@ class importer_db:
         else:
             sqlcmd+="asc"
 
+        return sqlcmd
+
+    #since should be a datetime object
+    def files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
+        sqlcmd = self._gen_sqlcmd("files", since=since,pathspec=pathspec,namespec=namespec,reverse_order=reverse_order)
         cursor=self.conn.cursor()
         cursor.execute(sqlcmd)
         #http://stackoverflow.com/questions/5010042/mysql-get-column-name-or-alias-from-query
@@ -530,6 +534,15 @@ class importer_db:
         for row in cursor:
             entity = dict(zip(fields, row))  #should return a dict with the column names as keys and data as values
             yield entity
+
+    def deleted_files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
+        sqlcmd = self._gen_sqlcmd("deleted_files", since=since,pathspec=pathspec,namespec=namespec,reverse_order=reverse_order)
+        cursor = self.conn.cursor()
+        cursor.execute(sqlcmd)
+        fields = map(lambda x:x[0], cursor.description)
+
+        for row in cursor:
+            yield dict(zip(fields, row))
 
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()

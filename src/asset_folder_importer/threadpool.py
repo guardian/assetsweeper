@@ -58,7 +58,10 @@ class ThreadPool(object):
         if priority<1:
             raise ValueError("Priority 0 is reserved")
         self.queue.put((priority, item))
-        
+
+    def pending(self):
+        return self.queue.qsize()
+
     def _new_thread(self):
         t = self._thread_cls(self.queue, *self._thread_args, **self._thread_kwargs)
         t.start()
