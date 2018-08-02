@@ -57,6 +57,7 @@ logging.info("done.")
 
 db.start_run(__scriptname__)
 
+update_vs_pool = None
 try:
     pathreplacematch = re.compile(r'^/srv')
 
@@ -64,7 +65,7 @@ try:
     files_nonexisting = 0
 
     logging.info("Starting up VS update thread")
-    update_vs_pool = ThreadPool(UpdateVsThread)
+    update_vs_pool = ThreadPool(UpdateVsThread, config=cfg)
 
     c=0
     for fileref in db.files():
@@ -107,7 +108,8 @@ try:
 
 except Exception as e:
     logging.error(str(e))
-    update_vs_pool.safe_terminate()
+    if update_vs_pool is not None:
+        update_vs_pool.safe_terminate()
     db.insert_sysparam("exit","error")
     db.insert_sysparam("error",e.message)
     db.insert_sysparam("traceback",traceback.format_exc())
