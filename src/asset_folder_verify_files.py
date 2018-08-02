@@ -16,7 +16,7 @@ import re
 
 #START MAIN
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-main_log_level = logging.DEBUG
+main_log_level = logging.ERROR
 logfile = "/var/log/plutoscripts/verify_files.log"
 #logfile = None
 
@@ -24,6 +24,9 @@ if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
 else:
     logging.basicConfig(format=LOGFORMAT, level=main_log_level)
+
+logger = logging.getLogger(__name__)
+logger.level = logging.INFO
 
 #Step one. Commandline args.
 parser = OptionParser()
@@ -41,29 +44,36 @@ else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
 
 #Now connect to db
-print "Connecting to database on %s" % cfg.value('database_host',noraise=True)
+logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 db = importer_db(__version__,hostname=cfg.value('database_host'),
                  port=cfg.value('database_port'),
                  username=cfg.value('database_user'),
                  password=cfg.value('database_password'))
-print "Checking schema version...",
+logging.info("Checking schema version...")
 db.check_schema_20()
 db.check_schema_21()
 db.check_schema_22()
-print "done."
+logging.info("done.")
 
 db.start_run(__scriptname__)
 
-pathreplacematch = re.compile(r'^/srv')
-
-files_existing = 0
-files_nonexisting = 0
-
-update_vs_pool = ThreadPool(UpdateVsThread)
-
 try:
+    pathreplacematch = re.compile(r'^/srv')
+
+    files_existing = 0
+    files_nonexisting = 0
+
+    logging.info("Starting up VS update thread")
+    update_vs_pool = ThreadPool(UpdateVsThread)
+
+    c=0
     for fileref in db.files():
         print("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)),
+        c+=1
+        if c>100:
+            logger.info("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting))
+            c=0
+
         filepath = os.path.join(fileref['filepath'],fileref['filename'])
         if os.path.exists(filepath):
             files_existing += 1
