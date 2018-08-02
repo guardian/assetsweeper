@@ -113,6 +113,7 @@ class UpdateVsThread(threading.Thread):
             (prio, item) = self._q.get(timeout=self.timeout)
             if item is None:
                 logger.warning("Received null, terminating thread")
+                return
             try:
                 self.update_sentry_context({"item": item})
                 self.process_item(item)
