@@ -35,7 +35,7 @@ class TestProcessPremiereProject(unittest2.TestCase):
                 mock_proj.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
                 from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
                 process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
-                mock_coll_instance.setName.assert_called_with("VX-446")
+                mock_coll_instance.populate.assert_called_with("VX-446")
 
     def test_notify_wrongpath(self):
         """
@@ -62,7 +62,169 @@ class TestProcessPremiereProject(unittest2.TestCase):
                         from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
 
                         process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
-                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': '/Volumes/Internet Downloads/WRONG FILE.mov'},mode="add")
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': ['/Volumes/Internet Downloads/WRONG FILE.mov']},mode="add")
+
+    def test_no_values(self):
+        """
+        update_invalid_media_paths should be able to cope with when the old value is empty and the new value is empty
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=[])
+        mock_coll_instance.get = MagicMock(return_value=[])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_not_called()
+
+    def test_no_current_value_add_a_list(self):
+        """
+        update_invalid_media_paths should be able to cope with when the old value is empty and the new is a list
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        mock_coll_instance.get = MagicMock(return_value=[])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': ['/Volumes/Internet Downloads/WRONG FILE.mov']},mode="add")
+
+    def test_current_value_is_a_list_replace_with_no_value(self):
+        """
+        update_invalid_media_paths should be able to cope with when the old value is a list and the new value is empty
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=[])
+        mock_coll_instance.get = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': []},mode="add")
+
+    def test_same_lists(self):
+        """
+        update_invalid_media_paths should be able to cope with when both values are the same list
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        mock_coll_instance.get = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_not_called()
+
+    def test_longer_list(self):
+        """
+        update_invalid_media_paths should be able to cope with when the old value is a list and the new value is a list including the same data but longer
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        mock_coll_instance.get = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov', '/Volumes/Internet Downloads/ANOTHER WRONG FILE.mov'])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': ['/Volumes/Internet Downloads/WRONG FILE.mov']},mode="add")
+
+    def test_shorter_list(self):
+        """
+        update_invalid_media_paths should be able to cope with when the old value is a list and the new value is a list including some of the same data but shorter
+        :return:
+        """
+        from asset_folder_importer.database import importer_db
+        from gnmvidispine.vs_collection import VSCollection
+        from gnmvidispine.vidispine_api import VSNotFound
+        from gnmvidispine.vs_item import VSItem
+        from asset_folder_importer.premiere_get_referenced_media.PremiereProject import PremiereProject
+        mock_database = MagicMock(target=importer_db)
+
+        mock_coll_instance = MagicMock(target=VSCollection)
+        mock_proj_instance = MagicMock(target=PremiereProject)
+        mock_item_instance = MagicMock(target=VSItem)
+        mock_proj_instance.getReferencedMedia = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov', '/Volumes/Internet Downloads/ANOTHER WRONG FILE.mov'])
+        mock_coll_instance.get = MagicMock(return_value=['/Volumes/Internet Downloads/WRONG FILE.mov'])
+        with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSCollection', return_value=mock_coll_instance) as mock_coll:
+            with patch('asset_folder_importer.premiere_get_referenced_media.processor.VSItem', return_value=mock_item_instance):
+                with patch('asset_folder_importer.premiere_get_referenced_media.processor.PremiereProject', return_value=mock_proj_instance) as mock_proj:
+                    with patch('asset_folder_importer.premiere_get_referenced_media.processor.process_premiere_fileref',side_effect=VSNotFound()):
+                        from asset_folder_importer.premiere_get_referenced_media.processor import process_premiere_project
+
+                        process_premiere_project("/fakeproject/VX-446.prproj", None, db=mock_database, cfg=self.FakeConfig())
+                        mock_coll_instance.get.assert_called()
+                        mock_coll_instance.set_metadata.assert_called_with({'gnm_project_invalid_media_paths': ['/Volumes/Internet Downloads/WRONG FILE.mov', '/Volumes/Internet Downloads/ANOTHER WRONG FILE.mov']},mode="add")
 
     def test_filepath_unicode(self):
         """

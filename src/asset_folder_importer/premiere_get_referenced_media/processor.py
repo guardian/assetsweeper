@@ -140,6 +140,15 @@ def process_premiere_fileref(filepath, server_path, vsproject, vs_pathmap=None, 
     return item
 
 
+def update_invalid_media_paths(vsproject, invalid_media_paths):
+    lg.debug("update_invalid_media_paths called with: {0}".format(invalid_media_paths))
+    current_value_of_field = vsproject.get('gnm_project_invalid_media_paths', allowArray=True)
+    lg.debug("update_invalid_media_paths.current_value_of_field: {0}".format(current_value_of_field))
+    lg.debug("update_invalid_media_paths.invalid_media_paths: {0}".format(invalid_media_paths))
+    if invalid_media_paths != current_value_of_field:
+        vsproject.set_metadata({'gnm_project_invalid_media_paths': invalid_media_paths}, mode="add")
+
+
 def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, cfg=None):
     """
     Main function to process a Premiere project file
@@ -155,8 +164,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     lg.info("Project's Vidispine ID: %s" % collection_vsid)
     vsproject = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
                              passwd=cfg.value('vs_password'))
-    vsproject.setName(collection_vsid)  #we don't need the actual metadata so don't bother getting it.
-    vsproject.set_metadata({'gnm_project_invalid_media_paths': ''}, mode="add")
+    vsproject.populate(collection_vsid)
 
     pp = PremiereProject()
     try:
@@ -199,6 +207,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     total_files = 0
     no_vsitem = 0
     not_in_db = 0
+    invalid_media_paths = []
 
     lg.debug("looking for referenced media....")
     for filepath in pp.getReferencedMedia():
@@ -234,16 +243,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
             if any(x in filepath for x in invalid_path_data):
                 filepath_doctored = filepath.replace(',', '')
                 #note - this could raise a 400 exception IF there is a conflict with something else trying to add info to the same field
-                vsprojectmetadata = VSCollection(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
-                                         passwd=cfg.value('vs_password'))
-                vsprojectmetadata.populate(collection_vsid)
-                current_value_of_field = vsprojectmetadata.get('gnm_project_invalid_media_paths')
-                if current_value_of_field == None:
-                    vsproject.set_metadata({'gnm_project_invalid_media_paths': filepath_doctored}, mode="add")
-                else:
-                    paths_list = current_value_of_field.split(",")
-                    if filepath_doctored not in paths_list:
-                        vsproject.set_metadata({'gnm_project_invalid_media_paths': '{0},{1}'.format(current_value_of_field.encode('utf-8'),filepath_doctored.encode('utf-8'))}, mode="add")
+                invalid_media_paths.append(filepath_doctored)
             continue
         except NotInDatabaseError:
             not_in_db += 1
@@ -258,6 +258,8 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
             except UnicodeEncodeError:
                 lg.info("File %s with id %s is already linked to project %s" % (filepath.encode('utf-8'), e.fileid, e.vsprojectid))
             continue
+
+    update_invalid_media_paths(vsproject, invalid_media_paths)
 
     lg.info(
         "Run complete. Out of a total of %d referenced files, %d did not have a Vidispine item and %d were not in the Asset Importer database" % (
