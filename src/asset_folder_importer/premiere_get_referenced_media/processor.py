@@ -141,10 +141,7 @@ def process_premiere_fileref(filepath, server_path, vsproject, vs_pathmap=None, 
 
 
 def update_invalid_media_paths(vsproject, invalid_media_paths):
-    lg.debug("update_invalid_media_paths called with: {0}".format(invalid_media_paths))
     current_value_of_field = vsproject.get('gnm_project_invalid_media_paths', allowArray=True)
-    lg.debug("update_invalid_media_paths.current_value_of_field: {0}".format(current_value_of_field))
-    lg.debug("update_invalid_media_paths.invalid_media_paths: {0}".format(invalid_media_paths))
     if invalid_media_paths != current_value_of_field:
         vsproject.set_metadata({'gnm_project_invalid_media_paths': invalid_media_paths}, mode="add")
 
