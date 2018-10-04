@@ -146,7 +146,7 @@ class importer_db:
         #select column_name from information_schema.columns where table_name='edit_projects' and column_name='clips'
         cursor = self.conn.cursor()
         sqlcmd="select column_name from information_schema.columns where table_name=%s and column_name=%s"
-        logging.debug("Checking for existence of column {0} in table {1}".format(tablename,columnname))
+        logging.debug("Checking for existence of column {1} in table {0}".format(tablename,columnname))
         cursor.execute(sqlcmd, (tablename,columnname))
         if cursor.fetchone() is not None:
             return True

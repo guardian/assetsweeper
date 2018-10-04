@@ -1,0 +1,4 @@
+ci  ALL=(postgres) NOPASSWD: /usr/bin/initdb
+ci  ALL=(postgres) NOPASSWD: /usr/bin/pg_ctl
+ci  ALL=(postgres) NOPASSWD: /usr/bin/createuser
+ci  ALL=(postgres) NOPASSWD: /usr/bin/createdb

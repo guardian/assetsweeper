@@ -11,7 +11,7 @@ if [ ! -d "~/rpmbuild" ]; then
 fi
 
 for x in `ls dist/*.tar.gz`; do cp "$x" ~/rpmbuild/assetsweeper.tar.gz; done
-HASH=$(shasum -a 256 "assetsweeper.tar.gz" | cut -d ' ' -f 1)
+HASH=$(sha256sum "assetsweeper.tar.gz" | cut -d ' ' -f 1)
 echo -e "sha256=$HASH" > assetsweeper.tar.gz.sha
 
 aws s3 cp ~/rpmbuild/assetsweeper.tar.gz s3://gnm-multimedia-deployables/asset_folder_importer/${CIRCLE_BUILD_NUM}/assetsweeper-${CIRCLE_BUILD_NUM}.tar.gz --acl public-read
