@@ -378,6 +378,74 @@ class ImporterThread(threading.Thread):
             sleep(5)
             import_job.update(noraise=False)
 
+    def gather_metadata(self, fileref, filepath):
+        path_parts = fileref['filepath'].split(os.sep)
+        try:
+            fileref['likely_project'] = path_parts[7]
+        except IndexError:
+            fileref['likely_project'] = "unknown project"
+
+        try:
+            working_group = path_parts[5]
+            self.logger.info("Working group is {0}".format(working_group))
+            if working_group=="Branding":
+                media_category = "Branding"
+            else:
+                media_category = "Rushes"
+        except IndexError:
+            media_category = "Rushes"
+
+        xdImporter = None
+        xdcamref = None
+        fileref['xdcam_card'] = False
+        if re.search(u'/BPAV/CLPR', fileref['filepath']):
+            self.logger.info("Got XDCAM file, probably")
+
+            try:
+                xdImporter = XDCAMImporter(fileref['filepath'])
+                pprint(xdImporter.__dict__)
+                xdcamref = xdImporter.__dict__
+                fileref['xdcam_card'] = True
+            except Exception as e:
+                msgstring = "Unable to import XDCAM metadata from path defined by %s" % fileref['filepath']
+                self.db.insert_sysparam("warning", msgstring)
+                self.db.insert_sysparam("warning", str(e))
+                self.db.commit()
+        else:
+            potentialXML = re.sub(u'\.[^\.]+', 'M01.XML',
+                                  os.path.join(fileref['filepath'], fileref['filename']))
+            self.logger.info("Checking for potential XML at %s" % potentialXML)
+            if os.path.exists(potentialXML):
+                try:
+                    xdImporter = XDCAMImporter(fileref['filepath'])
+                except InvalidDataError:  # this exception will get thrown as there is no SMI file
+                    pass
+                self.logger.info("Trying to load xdcam sidecar %s" % potentialXML)
+                xdImporter.load(specificFile=potentialXML)
+                xdcamref = xdImporter.__dict__
+                pprint(xdcamref)
+                fileref['xdcam_card'] = True
+            else:
+                fileref['xdcam_card'] = False
+
+        preludeproject = None
+
+        preludeclip = self.get_prelude_data(fileref, xdImporter)
+
+        if preludeclip is not None and preludeclip != {}:
+            preludeproject = self.db.get_prelude_project(preludeclip['parent_id'])
+
+        cubaseref = self.get_cubase_data(fileref['filepath'], fileref['filename'])
+
+        externaldata = self.get_external_supplier_metadata(filepath)
+
+        mdXML = self.render_xml(fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata,
+                                filepath, media_category=media_category)
+
+        import_tags = self.import_tags_for_fileref(fileref)
+
+        return mdXML, import_tags, preludeproject, cubaseref
+
     def attempt_file_import(self, fileref, filepath, rootpath):
         """
         Performs the actual import of a file
@@ -434,71 +502,9 @@ class ImporterThread(threading.Thread):
             
             try:
                 self.logger.info("Attempting to import...")
-                path_parts = fileref['filepath'].split(os.sep)
-                try:
-                    fileref['likely_project'] = path_parts[7]
-                except IndexError:
-                    fileref['likely_project'] = "unknown project"
 
-                try:
-                    working_group = path_parts[5]
-                    self.logger.info("Working group is {0}".format(working_group))
-                    if working_group=="Branding":
-                        media_category = "Branding"
-                    else:
-                        media_category = "Rushes"
-                except IndexError:
-                    media_category = "Rushes"
+                mdXML, import_tags, preludeproject, cubaseref = self.gather_metadata(fileref, filepath)
 
-                xdImporter = None
-                xdcamref = None
-                fileref['xdcam_card'] = False
-                if re.search(u'/BPAV/CLPR', fileref['filepath']):
-                    self.logger.info("Got XDCAM file, probably")
-                    
-                    try:
-                        xdImporter = XDCAMImporter(fileref['filepath'])
-                        pprint(xdImporter.__dict__)
-                        xdcamref = xdImporter.__dict__
-                        fileref['xdcam_card'] = True
-                    except Exception as e:
-                        msgstring = "Unable to import XDCAM metadata from path defined by %s" % fileref['filepath']
-                        self.db.insert_sysparam("warning", msgstring)
-                        self.db.insert_sysparam("warning", str(e))
-                        self.db.commit()
-                else:
-                    potentialXML = re.sub(u'\.[^\.]+', 'M01.XML',
-                                          os.path.join(fileref['filepath'], fileref['filename']))
-                    self.logger.info("Checking for potential XML at %s" % potentialXML)
-                    if os.path.exists(potentialXML):
-                        try:
-                            xdImporter = XDCAMImporter(fileref['filepath'])
-                        except InvalidDataError:  # this exception will get thrown as there is no SMI file
-                            pass
-                        self.logger.info("Trying to load xdcam sidecar %s" % potentialXML)
-                        xdImporter.load(specificFile=potentialXML)
-                        xdcamref = xdImporter.__dict__
-                        pprint(xdcamref)
-                        fileref['xdcam_card'] = True
-                    else:
-                        fileref['xdcam_card'] = False
-                
-                preludeproject = None
-                
-                preludeclip = self.get_prelude_data(fileref, xdImporter)
-
-                if preludeclip is not None and preludeclip != {}:
-                    preludeproject = self.db.get_prelude_project(preludeclip['parent_id'])
-                
-                cubaseref = self.get_cubase_data(fileref['filepath'], fileref['filename'])
-                
-                externaldata = self.get_external_supplier_metadata(filepath)
-                
-                mdXML = self.render_xml(fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata,
-                                        filepath, media_category=media_category)
-                
-                import_tags = self.import_tags_for_fileref(fileref)
-                
                 self.check_file_set_permissions(fileref)
 
                 self.do_real_import(vsfile,filepath,mdXML,import_tags)

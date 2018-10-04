@@ -179,5 +179,14 @@ Original Owner -->
             {% endif %}
         </group>
         {% endif %}
+
+        {% if archive_data %}
+        <group>
+            <name>ExternalArchiveRequest</name>
+            <field>
+                <name></name>
+            </field>
+        </group>
+        {% endif %}
     </timespan>
 </MetadataDocument>
