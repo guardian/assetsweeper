@@ -1,6 +1,6 @@
 FROM centos:7
 
-RUN yum -y install epel-release && yum -y install postgresql-dev python python-pip && yum clean all && rm -rf /var/cache/yum
+RUN yum -y install epel-release && yum -y install postgresql-dev python python-pip file && yum clean all && rm -rf /var/cache/yum
 COPY src/dist/gnm-assetsweeper-3.0.tar.gz /tmp
 COPY requirements.txt /tmp
 
