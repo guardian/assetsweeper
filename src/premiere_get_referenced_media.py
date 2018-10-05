@@ -18,7 +18,6 @@ import raven
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(name)s - %(levelname)s - %(message)s'
 main_log_level = logging.INFO
-logfile = "/var/log/plutoscripts/premiere_get_referenced_media.log"
 #End configurable parameters
 
 global vs_pathmap
@@ -34,6 +33,7 @@ parser.add_option("-f", "--force", dest="force", default=False,
                   help="run even if it appears that another get_referenced_media process is running, over-riding locks")
 parser.add_option("-n", "--not-incremental", dest="fullrun", default=False,
                   help="do not do an incremental run (default behaviour) but re-inspect every available project in the system")
+parser.add_option("--logfile", dest="logfile", help="Log output to this file; no value means log to console or value from config file.")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
@@ -44,6 +44,11 @@ else:
     cfg = configfile("/etc/asset_folder_importer.cfg")
 
 raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
+
+logfile = options.logfile
+if logfile is None:
+    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
+
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)

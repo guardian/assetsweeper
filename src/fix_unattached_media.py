@@ -16,12 +16,6 @@ from asset_folder_importer.threadpool import ThreadPool
 
 path_map = None
 
-logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
-                    level=logging.ERROR,
-                    filename='/var/log/plutoscripts/fix_unattached_media.log')
-
-logger = logging.getLogger(__name__)
-logger.level = logging.DEBUG
 
 THREADS = 5
 
@@ -40,9 +34,17 @@ try:
                       help="path to assetimporter config", default="/etc/asset_folder_importer.cfg")
     parser.add_option("--limit", dest="limit", help="stop after this number of items have been processed")
     parser.add_option("--nofix", dest="nofix", action="store_true", help="don't attempt to re-attach items that are not attached, just store stats")
+    parser.add_option("--logfile", dest="logfile", help="Log output to this file; no value means log to console or value from config file.")
     (options, args) = parser.parse_args()
 
     cfg = configfile(options.configfile)
+    logging.basicConfig(format='%(asctime)-15s - %(levelname)s - Thread %(threadName)s - %(funcName)s: %(message)s',
+                        level=logging.ERROR,
+                        filename=options.logfile)
+
+    logger = logging.getLogger(__name__)
+    logger.level = logging.DEBUG
+
     raven_client = raven.Client(cfg.value("sentry_dsn"))
 
     reattach_pool = ThreadPool(ReattachThread, initial_size=THREADS, min_size=0, max_size=10, options=options,config=cfg,

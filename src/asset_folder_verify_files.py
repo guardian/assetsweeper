@@ -17,13 +17,8 @@ import re
 #START MAIN
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
 main_log_level = logging.ERROR
-logfile = "/var/log/plutoscripts/verify_files.log"
-#logfile = None
 
-if logfile is not None:
-    logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
-else:
-    logging.basicConfig(format=LOGFORMAT, level=main_log_level)
+logging.basicConfig(format=LOGFORMAT, level=main_log_level)
 
 logger = logging.getLogger(__name__)
 logger.level = logging.INFO
@@ -42,6 +37,13 @@ if options.configfile:
     cfg=configfile(options.configfile)
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
+
+logfile = options.logfile
+if logfile is None:
+    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
+
+if logfile is not None:
+    logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
 
 #Now connect to db
 logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))

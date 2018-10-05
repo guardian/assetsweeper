@@ -23,7 +23,6 @@ sys.setdefaultencoding('utf-8')
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
 main_log_level = logging.DEBUG
-logfile = "/var/log/plutoscripts/asset_folder_vsingester.log"
 graveyard_folder = "/var/log/plutoscripts/asset_folder_ingester_failed_xml"
 #End configurable parameters
 
@@ -114,6 +113,7 @@ parser.add_option("-f","--force", dest="force", help="run even if it appears tha
 parser.add_option("-p","--path", dest="path", help="only import files that are at this (absolute) path or its descendants")
 parser.add_option("-l","--limit", dest="limit", help="stop after attempting to import this many files")
 parser.add_option("-k","--keeplist", dest="keeplist", help="only import these file extensions. Seperate multuple ones with commas.")
+parser.add_option("--logfile", dest="logfile", help="Log output to this file; no value means log to console or value from config file.")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
@@ -124,6 +124,10 @@ if options.configfile:
     cfg=configfile(options.configfile)
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
+
+logfile = options.logfile
+if logfile is None:
+    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)

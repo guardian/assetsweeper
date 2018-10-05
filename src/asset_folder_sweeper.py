@@ -16,8 +16,6 @@ __version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
 __scriptname__ = 'asset_folder_sweeper'
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-#logfile = None
-logfile = "/var/log/plutoscripts/asset_folder_sweeper.log"
 #End configurable parameters
 
 #START MAIN
@@ -32,6 +30,7 @@ parser.add_option("-w", "--password", dest="passwd", help="use this password whe
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
 parser.add_option("-f","--force", dest="force", help="over-ride any existing lock and run anyway, possibly competing with another instance")
 parser.add_option("-l","--loglevel", dest="loglevel", help="logging level. 0 for errors only, 1 for warnings, 2 for log and 3 for debug", default=1)
+parser.add_option("--logfile", dest="logfile", help="Log output to this file; no value means log to console or value from config file.")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
@@ -52,6 +51,10 @@ else:
     main_log_level=logging.ERROR
 
 raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
+
+logfile = options.logfile
+if logfile is None:
+    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)

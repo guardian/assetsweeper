@@ -15,8 +15,6 @@ import traceback
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
 main_log_level = logging.ERROR
-#logfile = None
-logfile = "/var/log/plutoscripts/find_flushable_unimported_media.log"
 #End configurable parameters
 
 
@@ -83,12 +81,17 @@ class AssetFolderCache(object):
 #Step one. Commandline args.
 parser = OptionParser()
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
+parser.add_option("--logfile", dest="logfile", help="Log output to this file; no value means log to console or value from config file.")
 (options, args) = parser.parse_args()
 
 if options.configfile:
     cfg=configfile(options.configfile)
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
+
+logfile = options.logfile
+if logfile is None:
+    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
 
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
