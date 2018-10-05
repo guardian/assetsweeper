@@ -43,7 +43,10 @@ def file_has_any_extension(filename, extensionlist):
 def innerMainFunc(cfg,db,limit, keeplist):
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
-    st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
+    st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),
+                 user=cfg.value('vs_user'),passwd=cfg.value('vs_password'),
+                 https=cfg.value('vs_https'))
+
     st.populate(storageid)
 
     possible_roots = []

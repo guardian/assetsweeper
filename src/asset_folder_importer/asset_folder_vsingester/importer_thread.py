@@ -52,7 +52,7 @@ class ImporterThread(threading.Thread):
         self.mdTemplate = self.templateEnv.get_template('vsasset.xml')
         self.queue = q
         self.st = VSStorage(host=cfg.value('vs_host'), port=cfg.value('vs_port'), user=cfg.value('vs_user'),
-                            passwd=cfg.value('vs_password'))
+                            passwd=cfg.value('vs_password'), https=cfg.value('vs_https'))
         if storageid is not None:
             self.st.populate(storageid)
         self.db = dbconn if dbconn is not None else importer_db(__version__, hostname=cfg.value('database_host'),
