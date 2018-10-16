@@ -7,18 +7,6 @@ import xml.etree.ElementTree as ET
 import os
 import logging
 
-# Configurable parameters
-LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-main_log_level = logging.DEBUG
-logfile = "/var/log/plutoscripts/prelude_importer.log"
-#End configurable parameters
-
-if logfile is not None:
-    logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
-else:
-    logging.basicConfig(format=LOGFORMAT, level=main_log_level)
-
-
 class NotPreludeProjectException(StandardError):
     pass
 
