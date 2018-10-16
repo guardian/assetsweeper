@@ -8,6 +8,9 @@ import platform
 import os
 import datetime as dt
 import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 
 class DataError(StandardError):
@@ -37,6 +40,13 @@ class importer_db:
 
         self.conn = psycopg2.connect(database=dbname,user=username,password=password,host=hostname,port=portnum)
         self.clientversion=clientversion
+        self.pid = os.getpid()
+        logger.info("PID is {0}".format(self.pid))
+
+        if self.pid==1:
+            self.pid = int(time.time())
+            logging.info("Running in Docker so replacing PID with a timed id: {0}".format(self.pid))
+
 
     def setup_upsert_function(self):
         sqlcmd = """create or replace function upsert_file(fp text, fn text) returns INTEGER as
@@ -169,7 +179,7 @@ class importer_db:
         cursor=self.conn.cursor()
         for attempt in range(1,10):
             try:
-                cursor.execute("insert into system (key,value,pid) values (%s,%s,%s)", (key, value, os.getpid()))
+                cursor.execute("insert into system (key,value,pid) values (%s,%s,%s)", (key, value, self.pid))
                 break
             except psycopg2.InternalError: #if we have an aborted transaction, cleanup and then re-try
                 self.conn.rollback()
@@ -285,7 +295,7 @@ class importer_db:
         cursor = self.conn.cursor()
 
         cursor.execute("insert into run_history (scriptname,start_time,pid,host) values (%s,%s,%s,%s)",
-                       (scriptname,dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
+                       (scriptname,dt.datetime.now().isoformat('T'),self.pid,socket.gethostname()))
         self.conn.commit()
 
     def end_run(self,status=None):
@@ -295,7 +305,7 @@ class importer_db:
             self.insert_sysparam('exit',status)
         cursor=self.conn.cursor()
         cursor.execute("update run_history set end_time=%s where pid=%s and host=%s",
-                       (dt.datetime.now().isoformat('T'),os.getpid(),socket.gethostname()))
+                       (dt.datetime.now().isoformat('T'),self.pid,socket.gethostname()))
         self.conn.commit()
 
     def project_type_for_extension(self,xtn,desc=None,opens_with=None):

@@ -39,13 +39,14 @@ if options.configfile:
 else:
     cfg=configfile("/etc/asset_folder_importer.cfg")
 
-if options.loglevel==0:
+loglevel = int(options.loglevel)
+if loglevel==0:
     main_log_level=logging.ERROR
-elif options.loglevel==1:
+elif loglevel==1:
     main_log_level=logging.WARNING
-elif options.loglevel==2:
+elif loglevel==2:
     main_log_level=logging.INFO
-elif options.loglevel==3:
+elif loglevel==3:
     main_log_level=logging.DEBUG
 else:
     main_log_level=logging.ERROR
