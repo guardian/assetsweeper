@@ -16,7 +16,7 @@ import re
 
 #START MAIN
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-main_log_level = logging.ERROR
+main_log_level = logging.INFO
 
 logging.basicConfig(format=LOGFORMAT, level=main_log_level)
 
