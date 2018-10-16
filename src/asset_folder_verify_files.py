@@ -26,7 +26,7 @@ logger.level = logging.INFO
 #Step one. Commandline args.
 parser = OptionParser()
 parser.add_option("-c","--config", dest="configfile", help="import configuration from this file")
-
+parser.add_option("--logfile",dest="logfile", help="log output to this file.  If neither this nor log_file in config file is set, then logs go to console.")
 (options, args) = parser.parse_args()
 
 #Step two. Read config
