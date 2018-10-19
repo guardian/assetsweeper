@@ -7,6 +7,6 @@ COPY requirements.txt /tmp
 RUN cd /tmp && wget https://github.com/fredex42/gnmvidispine/archive/master.zip && unzip master.zip && cd gnmvidispine-master && pip install -r requirements.txt && python ./setup.py install && cd ~ && rm -rf /tmp/gnmvidispine
 RUN cd /tmp && tar xvzf gnm-assetsweeper-3.0.tar.gz && cd gnm-assetsweeper-3.0 && pip install -r /tmp/requirements.txt && python ./setup.py install && cd ~ && rm -rf /tmp/assetsweeper
 RUN rpm --erase unzip wget
-RUN adduser assetimporter
+RUN adduser assetimporter -u 504
 USER assetimporter
 WORKDIR /home/assetimporter
