@@ -32,7 +32,7 @@ cursor.execute("select id,key,value,timestamp,pid from system where key='run_end
 if cursor.rowcount==0:
     print "Script is locked. Removing lock."
 
-    cursor.execute("insert into system (key,value,pid) values ('run_end',%s,%s)", (datetime.datetime.now(),str(pid),)
+    cursor.execute("insert into system (key,value,pid) values ('run_end',%s,%s)", (datetime.datetime.now().isoformat(),str(pid),)
                    )
     conn.commit()
     print "Done."
