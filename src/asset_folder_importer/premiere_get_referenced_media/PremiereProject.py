@@ -1,4 +1,5 @@
 import xml.sax as sax
+from xml.sax import SAXParseException
 import logging
 import shutil
 import tempfile
@@ -19,6 +20,17 @@ class PremiereProject(object):
         self._sax_handler = PremiereSAXHandler()
         self._parser.setContentHandler(self._sax_handler)
 
+    def get_file_handle(self, filename):
+        try:
+            self.isCompressed = True
+            f = gzip.open(filename, "rb")
+            return f
+        except IOError:  # if gzip doesn't want to read it, then try as a plain file...
+            lg.warning("Open with gzip failed, trying standard file")
+            self.isCompressed = False
+            f = open(filename, "rb")
+            return f
+
     def load(self, filename, useTempFile=True):
 
         tf = None
@@ -32,16 +44,11 @@ class PremiereProject(object):
 
         lg.debug("PremiereProject::load - loading %s" % filename)
         try:
-            self.isCompressed = True
-            f = gzip.open(filename, "rb")
+            f = self.get_file_handle(filename)
             self._parser.parse(f)
-            f.close()
-        except IOError:  #if gzip doesn't want to read it, then try as a plain file...
-            lg.warning("Open with gzip failed, trying standard file")
-            self.isCompressed = False
-            f = open(filename, "rb")
-            self._parser.parse(f)
-            f.close()
+        except SAXParseException as e:
+            lg.warning("Attempt at parsing XML for {0} failed.".format(filename))
+        f.close()
         if tf is not None:
             lg.debug("PremiereProject::load - removing temporary file %s" % tf.name)
             os.unlink(tf.name)
