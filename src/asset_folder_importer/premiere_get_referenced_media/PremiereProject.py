@@ -1,4 +1,5 @@
 import xml.sax as sax
+from xml.sax import SAXParseException
 import logging
 import shutil
 import tempfile
@@ -40,8 +41,20 @@ class PremiereProject(object):
             lg.warning("Open with gzip failed, trying standard file")
             self.isCompressed = False
             f = open(filename, "rb")
-            self._parser.parse(f)
+            try:
+                self._parser.parse(f)
+            except SAXParseException:
+                lg.warning("Attempt at parsing XML for {0} failed.".format(filename))
+                if tf is not None:
+                    lg.debug("PremiereProject::load - removing temporary file %s" % tf.name)
+                    os.unlink(tf.name)
             f.close()
+        except SAXParseException:
+            lg.warning("Attempt at parsing XML for {0} failed.".format(filename))
+            f.close()
+            if tf is not None:
+                lg.debug("PremiereProject::load - removing temporary file %s" % tf.name)
+                os.unlink(tf.name)
         if tf is not None:
             lg.debug("PremiereProject::load - removing temporary file %s" % tf.name)
             os.unlink(tf.name)
