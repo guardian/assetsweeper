@@ -24,7 +24,13 @@ class AssetFolderLocator(object):
         self._passwd=passwd
         self._http = http_client if http_client is not None else httplib.HTTPConnection(self._host, self._port)
         self._logger=logger if logger is not None else logging.getLogger(__name__)
-        
+
+    def new_connection(self,scheme="http"):
+        if scheme=="http":
+            return httplib.HTTPConnection(self._host, self._port)
+        else:
+            return httplib.HTTPSConnection(self._host, self._port)
+
     def find_assetfolder(self, path):
         auth = base64.encodestring('%s:%s' % (self._user, self._passwd)).replace('\n', '')
 
