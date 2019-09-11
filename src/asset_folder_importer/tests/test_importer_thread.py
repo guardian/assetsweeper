@@ -16,7 +16,7 @@ class TestImporterThread(unittest.TestCase):
         def __init__(self, content):
             self._content = content
             
-        def value(self, key, noraise=True):
+        def value(self, key, default=None, noraise=True):
             if not key in self._content:
                 return ""
             return self._content[key]
