@@ -4,6 +4,7 @@ import logging
 import base64
 import json
 
+logger = logging.getLogger(__name__)
 
 class HTTPError(StandardError):
     def __init__(self, url, responseobject):
@@ -49,6 +50,7 @@ class AssetFolderLocator(object):
             raise ProjectNotFound(path)
         
         if response.status<200 or response.status>299:
+            logger.warning(u"Could not find asset folder: server returned {0} with body {1}".format(response.status, raw_content.decode("UTF-8")))
             raise HTTPError(url, response)
         
         content = json.loads(raw_content)
