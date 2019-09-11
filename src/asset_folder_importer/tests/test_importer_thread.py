@@ -6,6 +6,8 @@ import logging
 import json
 import gnmvidispine.vs_storage
 from mock import MagicMock, patch
+import requests
+import responses
 
 class TestImporterThread(unittest.TestCase):
     def __init__(self, *args,**kwargs):
@@ -66,6 +68,7 @@ class TestImporterThread(unittest.TestCase):
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'audio/aiff'}), ['lowaudio'])
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'audio/wav'}), ['lowaudio'])
         self.assertEqual(i.import_tags_for_fileref({'mime_type': 'application/xml'}),None)
+
     class FakeResponse(object):
         def __init__(self, content, status):
             self.content = content
@@ -91,7 +94,8 @@ class TestImporterThread(unittest.TestCase):
             url = urllib.unquote(url)
             if url.endswith('/path/to/my/assetfolder'):
                 self.jackpot=True
-        
+
+    @responses.activate
     def test_find_invalid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
@@ -99,41 +103,49 @@ class TestImporterThread(unittest.TestCase):
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_",username="circletest",password="testpass")
 
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
-            logging.basicConfig(level=logging.ERROR)
-            logger = logging.getLogger("tester")
-            logger.setLevel(logging.ERROR)
-            i = ImporterThread(None, None,
-                               self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
-                               }), dbconn=db)
-            
-            mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
-            result = i.ask_pluto_for_projectid("/path/to/something/invalid/media.mxf")
-            self.assertEqual(result,None)
+        logging.basicConfig(level=logging.ERROR)
+        logger = logging.getLogger("tester")
+        logger.setLevel(logging.ERROR)
+        i = ImporterThread(None, None,
+                           self.FakeConfig({
+                               'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                               'pluto_host': 'somehost',
+                               'pluto_scheme': 'http',
+                               'pluto_port': 80,
+                           }), dbconn=db)
 
+        responses.add(responses.GET, "http://somehost:80/gnm_asset_folder/lookup",json={'status': 'notfound'}, status=404)
+
+        #mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
+        result = i.ask_pluto_for_projectid("/path/to/something/invalid/media.mxf")
+        self.assertEqual(result,None)
+
+    @responses.activate
     def test_find_valid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
         
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_", username="circletest", password="testpass")
-        
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
-            logging.basicConfig(level=logging.ERROR)
-            logger = logging.getLogger("tester")
-            logger.setLevel(logging.ERROR)
-            i = ImporterThread(None, None,
-                               self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
-                               }), dbconn=db)
-            
-            mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
-            result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/with/subdirectories/media.mxf")
-            self.assertEqual(result,'KP-1234')
 
-            result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/media.mxf")
-            self.assertEqual(result, 'KP-1234')
+        logging.basicConfig(level=logging.ERROR)
+        logger = logging.getLogger("tester")
+        logger.setLevel(logging.ERROR)
+        i = ImporterThread(None, None,
+                           self.FakeConfig({
+                               'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                               'pluto_host': 'somehost',
+                               'pluto_scheme': 'http',
+                               'pluto_port': 80,
+                           }), dbconn=db)
+
+        responses.add(responses.GET, "http://somehost:80/gnm_asset_folder/lookup",json={'status': 'ok','project':'KP-1234'}, status=200)
+
+        result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/with/subdirectories/media.mxf")
+        self.assertEqual(result,'KP-1234')
+
+        result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/media.mxf")
+        self.assertEqual(result, 'KP-1234')
 
     def test_vs_inconsistency_error(self):
         from gnmvidispine.vs_storage import VSStorage, VSFile
@@ -150,7 +162,8 @@ class TestImporterThread(unittest.TestCase):
         mockstorage.create_file_entity = mock.MagicMock(side_effect=HTTPError(503,"GET","http://fake-url","Failed","I didn't expect the Spanish Inqusition",""))
         mockfile = mock.MagicMock(target=VSFile)
 
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
+        response = MagicMock(target=requests.Response)
+        with mock.patch('requests.get', return_value=response) as mock_connection:
             logging.basicConfig(level=logging.ERROR)
             logger = logging.getLogger("tester")
             logger.setLevel(logging.ERROR)
@@ -187,8 +200,9 @@ class TestImporterThread(unittest.TestCase):
 
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_", username="circletest", password="testpass")
-            
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
+
+        response = MagicMock(target=requests.Response)
+        with mock.patch('requests.get', return_value=response) as mock_connection:
             fake_job = self.StalledJob()
 
             mock_vsfile = mock.MagicMock(target=gnmvidispine.vs_storage.VSFile)
