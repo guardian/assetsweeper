@@ -21,14 +21,17 @@ class configfile:
                 self.content[m.group(1)]=m.group(2)
         #pprint(self.content)
 
-    def value(self,key,noraise=True):
+    def value(self,key,default=None,noraise=True):
         try:
             return self.content[key]
         except KeyError as e:
-            print "error: No configuration key exists for %s" %key
-            if noraise:
-                return None
-            raise e
+            if default is None:
+                print "error: No configuration key exists for %s" %key
+                if noraise:
+                    return None
+                raise e
+            else:
+                return default
 
     def setValue(self,key,value):
         self.content[key] = value

@@ -176,7 +176,7 @@ class ImporterThread(threading.Thread):
         
     def ask_pluto_for_projectid(self, filepath):
         from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
-        l = AssetFolderLocator(host=self.cfg.value('pluto_host'), port=self.cfg.value('pluto_port'),
+        l = AssetFolderLocator(scheme=self.cfg.value('pluto_scheme',default="http"), host=self.cfg.value('pluto_host'), port=self.cfg.value('pluto_port'),
                                 user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         
         test_path_segments = os.path.dirname(filepath).split('/')
