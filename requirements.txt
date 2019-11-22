@@ -6,3 +6,4 @@ jinja2==2.7.3
 psycopg2==2.7.3.2
 PyYAML==3.13
 python-dateutil==2.6.1
+future
