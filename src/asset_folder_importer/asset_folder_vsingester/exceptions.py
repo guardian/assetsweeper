@@ -1,20 +1,20 @@
-class NotFoundError(StandardError):
+class NotFoundError(Exception):
     pass
 
 
-class XMLBuildError(StandardError):
+class XMLBuildError(Exception):
     pass
 
 
-class FileOnIgnoreList(StandardError):
+class FileOnIgnoreList(Exception):
     pass
 
 
-class FileDoesNotExist(StandardError):
+class FileDoesNotExist(Exception):
     pass
 
 
-class VSFileInconsistencyError(StandardError):
+class VSFileInconsistencyError(Exception):
     """
     Raised if we get a 503 error from trying to create a file entity in Vidispine.
     """

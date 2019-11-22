@@ -4,8 +4,8 @@ import logging
 import shutil
 import tempfile
 import gzip
-from PremiereSAXHandler import PremiereSAXHandler
-from Exceptions import InvalidDataError, NoMediaError
+from .PremiereSAXHandler import PremiereSAXHandler
+from .Exceptions import InvalidDataError, NoMediaError
 import os
 
 lg = logging.getLogger(__name__)

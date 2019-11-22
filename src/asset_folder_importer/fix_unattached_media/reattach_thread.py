@@ -58,7 +58,7 @@ class ReattachThread(Thread):
         self.logger.info("Updated metadata for item {0}".format(item.name))
     
     def run(self):
-        from Queue import Empty
+        from queue import Empty
         while True:
             try:
                 (prio,item) = self._inq.get(block=True, timeout=self.timeout)

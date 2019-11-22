@@ -79,10 +79,10 @@ class Provider(BaseProvider):
         rtn['gnm_asset_user_keywords'] = []
         #No idea WHY we need to do it like this - but we do because x['text'] raises an error
         for x in data['keywords']:
-            for k, v in x.items():
+            for k, v in list(x.items()):
                 if k!='text':
                     continue
-                print "\t{0}=>{1}".format(k,v)
+                print("\t{0}=>{1}".format(k,v))
                 if re.match(r'^\s*$',v):
                     break
                 rtn['gnm_asset_user_keywords'].append(v)

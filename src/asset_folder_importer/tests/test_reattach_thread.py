@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 import threading
@@ -9,7 +9,7 @@ import logging
 class TestReattachThread(unittest.TestCase):
     def test_runloop_timeout(self):
         from asset_folder_importer.fix_unattached_media import reattach_thread
-        from Queue import PriorityQueue
+        from queue import PriorityQueue
         q = PriorityQueue()
         
         logger = logging.getLogger("test_runloop")
@@ -27,7 +27,7 @@ class TestReattachThread(unittest.TestCase):
 
     def test_runloop_execute(self):
         from asset_folder_importer.fix_unattached_media import reattach_thread
-        from Queue import PriorityQueue
+        from queue import PriorityQueue
         from raven import Client
         
         q = PriorityQueue()

@@ -17,7 +17,7 @@ def id_from_filepath(filepath):
     :return: String of the Vidispine ID or None of it could not be found
     """
     filename = os.path.basename(filepath)
-    matches = re.search(u'^(.*)\.[^\.]+$', filename)
+    matches = re.search('^(.*)\.[^\.]+$', filename)
     if matches is not None:
         return matches.group(1)
     else:
@@ -68,10 +68,10 @@ def find_vsstorage_for(filepath, vs_pathmap, limit_len):
     :param limit_len: limit of matching path segments within which to consider the match
     :return: Vidispine ID of storage or None if none could be found
     """
-    pathsegments = filter(None, filepath.split(os.path.sep))  #filter out null values
+    pathsegments = [_f for _f in filepath.split(os.path.sep) if _f]  #filter out null values
 
-    for key, value in vs_pathmap.items():
-        source_segments = filter(None, key.split(os.path.sep))
+    for key, value in list(vs_pathmap.items()):
+        source_segments = [_f for _f in key.split(os.path.sep) if _f]
         #must start matching at 1, as the first part is /srv on the server and /Volumes on the client
         if do_partial_match(source_segments, pathsegments, limit_len, start=1):
             return value
@@ -169,7 +169,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     except Exception as e:
         lg.error("Unable to read '%s': %s" % (filepath,e.message))
         lg.error(traceback.format_exc())
-        print "Unable to read '%s': %s" % (filepath,e.message)
+        print("Unable to read '%s': %s" % (filepath,e.message))
         traceback.print_exc()
         raven_client.captureException()
         return (0,0,0)
@@ -197,7 +197,7 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
         return (0,0,0)
 
     except InvalidDataError as e:
-        db.insert_sysparam("warning","Corrupted project file: {0} {1}".format(filepath,unicode(e)))
+        db.insert_sysparam("warning","Corrupted project file: {0} {1}".format(filepath,str(e)))
         raven_client.captureException()
         return (0,0,0)
 
@@ -214,14 +214,14 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
         except UnicodeEncodeError:
             lg.debug("Looking up {0}".format(filepath.encode('utf-8')))
         try:
-            server_path = re.sub(u'^/Volumes', '/srv', filepath).encode('utf-8')
+            server_path = re.sub('^/Volumes', '/srv', filepath).encode('utf-8')
         except UnicodeDecodeError:
-            server_path = re.sub(u'^/Volumes', '/srv', filepath.decode('utf-8'))
+            server_path = re.sub('^/Volumes', '/srv', filepath.decode('utf-8'))
         try:
             item=process_premiere_fileref(filepath, server_path, project_id, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
             #using this construct to avoid loading more data from VS than necessary.  We simply check whether the ID exists
             #in the parent collections list (cached on the item record) without lifting any more info out of VS
-            if vsproject.name in map(lambda x: x.name,item.parent_collections(shouldPopulate=False)):
+            if vsproject.name in [x.name for x in item.parent_collections(shouldPopulate=False)]:
                 lg.info("File %s is already in project %s" % (filepath,vsproject.name))
                 continue
 

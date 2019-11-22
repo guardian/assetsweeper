@@ -14,7 +14,7 @@ import re
 import time
 import logging
 import threading
-from Queue import Empty
+from queue import Empty
 import asset_folder_importer.externalprovider as externalprovider
 from subprocess import Popen,PIPE
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
@@ -24,7 +24,7 @@ __version__ = 'asset_folder_vsingester $$'
 __scriptname__ = 'asset_folder_vsingester'
 
 
-class ImportStalled(StandardError):
+class ImportStalled(Exception):
     pass
 
 
@@ -119,7 +119,7 @@ class ImporterThread(threading.Thread):
         :return: yields results
         """
         for x in self.potentialSidecarExtensions:
-            potentialFile = re.sub(u'\.[^\.]+', x, filename)
+            potentialFile = re.sub('\.[^\.]+', x, filename)
             yield potentialFile
         for x in self.potentialSidecarExtensions:
             potentialFile = filename + x
@@ -127,7 +127,7 @@ class ImporterThread(threading.Thread):
         if isxdcam:
             for x in self.potentialSidecarExtensions:
                 fileAppend = "M01{0}".format(x)
-                potentialFile = re.sub(u'\.[^\.]+', fileAppend, filename)
+                potentialFile = re.sub('\.[^\.]+', fileAppend, filename)
                 yield potentialFile
             
     def render_xml(self, fileref, preludeclip, preludeproject, xdcamref, cubaseref, externaldata, filepath, media_category="Rushes"):
@@ -159,8 +159,9 @@ class ImporterThread(threading.Thread):
         kill_proc = lambda p: p.kill()
         t = threading.Timer(self._timeout, kill_proc, [proc])
         t.start()
+        #mdXML = b"%s" % mdXML
         try:
-            (stdout, stderr) = proc.communicate(mdXML)
+            (stdout, stderr) = proc.communicate(mdXML.encode("UTF-8"))
         finally:
             t.cancel()
     
@@ -205,7 +206,7 @@ class ImporterThread(threading.Thread):
                                     user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         if preludeproject:
             #if the item is attached to a prelude project that will immediately give us the project ID to attach to
-            projectId = re.sub(u'\.[^\.]+$', '', preludeproject['filename'])
+            projectId = re.sub('\.[^\.]+$', '', preludeproject['filename'])
             # VSprojectRef.populate(projectId)
             VSprojectRef.name = projectId
         
@@ -279,7 +280,7 @@ class ImporterThread(threading.Thread):
                 self.db.insert_sysparam("warning", msgstring)
             except FileOnIgnoreList:
                 self.ignored += 1
-            except StandardError as e:
+            except Exception as e:
                 msgstring = "WARNING: error {0} occurred: {1}".format(e.__class__, e)
                 self.logger.warning(msgstring)
                 self.logger.warning(traceback.format_exc())
@@ -298,7 +299,7 @@ class ImporterThread(threading.Thread):
         from subprocess import call
         try:
             call(["/bin/sudo", self._permissionscript, file])
-        except StandardError as e:
+        except Exception as e:
             self.logger.error("Error calling permissions script {0} on {1}: {2}".format(self._permissionscript, file, e))
 
     def import_tags_for_fileref(self,fileref):
@@ -349,7 +350,7 @@ class ImporterThread(threading.Thread):
             else:
                 return ""
         except LookupError as e:
-            self.logger.error(unicode(e))
+            self.logger.error(str(e))
             return ""
 
     def do_real_import(self, vsfile, filepath,mdXML,import_tags):
@@ -453,7 +454,7 @@ class ImporterThread(threading.Thread):
                 xdImporter = None
                 xdcamref = None
                 fileref['xdcam_card'] = False
-                if re.search(u'/BPAV/CLPR', fileref['filepath']):
+                if re.search('/BPAV/CLPR', fileref['filepath']):
                     self.logger.info("Got XDCAM file, probably")
                     
                     try:
@@ -467,7 +468,7 @@ class ImporterThread(threading.Thread):
                         self.db.insert_sysparam("warning", str(e))
                         self.db.commit()
                 else:
-                    potentialXML = re.sub(u'\.[^\.]+', 'M01.XML',
+                    potentialXML = re.sub('\.[^\.]+', 'M01.XML',
                                           os.path.join(fileref['filepath'], fileref['filename']))
                     self.logger.info("Checking for potential XML at %s" % potentialXML)
                     if os.path.exists(potentialXML):
@@ -518,8 +519,8 @@ class ImporterThread(threading.Thread):
                         self.db.update_file_vidispine_id(fileref['id'], vsfile.memberOfItem.name)
                         break
                     except NotFoundError as e:
-                        self.db.insert_sysparam("warning", e.message)
-                        self.logger.warning("Warning: %s" % e.message)
+                        self.db.insert_sysparam("warning", e)
+                        self.logger.warning("Warning: %s" % e)
                         self.db.commit()
                         # no point in doing the below, since it relies on having a project reference available
                         return (found, withItems, imported)

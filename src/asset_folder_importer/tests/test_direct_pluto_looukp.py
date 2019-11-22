@@ -1,10 +1,10 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 import threading
 import mock
 import logging
-import httplib
+import http.client
 import json
 
 
@@ -37,7 +37,7 @@ class TestDirectPlutoLookup(unittest.TestCase):
         from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
         logger = logging.getLogger("test")
         logger.debug=mock.MagicMock()
-        conn = httplib.HTTPConnection(self.fake_host,self.fake_port)
+        conn = http.client.HTTPConnection(self.fake_host,self.fake_port)
         conn.request = mock.MagicMock()
         conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(200,self.success_data))
         
@@ -49,7 +49,7 @@ class TestDirectPlutoLookup(unittest.TestCase):
         self.assertEqual(result,'VX-123')
 
         #test unsuccessful lookup
-        conn = httplib.HTTPConnection(self.fake_host, self.fake_port)
+        conn = http.client.HTTPConnection(self.fake_host, self.fake_port)
         conn.request = mock.MagicMock()
         conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(404, self.notfound_data))
         
@@ -62,7 +62,7 @@ class TestDirectPlutoLookup(unittest.TestCase):
     def test_retry(self):
         from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
         
-        conn = httplib.HTTPConnection(self.fake_host, self.fake_port)
+        conn = http.client.HTTPConnection(self.fake_host, self.fake_port)
         conn.request = mock.MagicMock()
         conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(504, ""))
     

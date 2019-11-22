@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 
@@ -23,7 +23,7 @@ class TestCheckMime(unittest.TestCase):
 
         (statinfo, mimetype) = check_mime(filepath, db)
 
-        self.assertEqual(mimetype, "text/plain")
+        self.assertEqual(mimetype, b"text/plain")
         self.assertNotEqual(statinfo, None)
 
         filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "1.jpeg")

@@ -7,9 +7,10 @@ __scriptname__ = 'asset_folder_vsingester'
 #this also requires python-setuptools to be installed
 from asset_folder_importer.config import configfile
 from optparse import OptionParser
-from Queue import Queue
+from queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
+import importlib
 
 MAXTHREADS = 8
 #suid perl script so we don't need to run the whole shebang as root
@@ -17,7 +18,7 @@ PERMISSIONSCRIPT = "/usr/bin/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
 XML_CHECK_TIMEOUT = 60  #wait up to 60s for XML validation
 import sys
-reload(sys)
+importlib.reload(sys)
 sys.setdefaultencoding('utf-8')
 
 # Configurable parameters
@@ -79,7 +80,7 @@ def innerMainFunc(cfg,db,limit, keeplist):
         filepath = os.path.join(fileref['filepath'],fileref['filename'])
         # we need to remove the part of the filepath that corresponds to the storage path on the server
         for rootpath in possible_roots:
-            filepath = re.sub(u'^{0}'.format(rootpath),'',filepath)
+            filepath = re.sub('^{0}'.format(rootpath),'',filepath)
             n += 1
             input_queue.put([fileref,filepath,rootpath])
         if isinstance(limit, int):

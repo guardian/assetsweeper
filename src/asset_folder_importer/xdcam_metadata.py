@@ -6,10 +6,10 @@ import os
 import datetime
 from pprint import pprint
 
-class PathNotFoundError(StandardError):
+class PathNotFoundError(Exception):
     pass
 
-class InvalidDataError(StandardError):
+class InvalidDataError(Exception):
     pass
 
 class XDCAMImporter:
@@ -107,7 +107,7 @@ class XDCAMImporter:
         self.loadedSMI=True
 
     def _loadReferences(self):
-        for k,v in self.references.items():
+        for k,v in list(self.references.items()):
             #print "got reference %s at %s" % (k,v)
             if k=="NonRealTimeMeta":
                 self._loadSonyNRTMeta(v)
@@ -215,5 +215,5 @@ class XDCAMImporter:
                 self.packageName=packageEl.attrib['name']
                 self.packageType=packageEl.attrib['type']
             except KeyError as e:
-                print "Warning: %s" % e.message
+                print("Warning: %s" % e.message)
 

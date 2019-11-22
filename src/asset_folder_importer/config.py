@@ -9,7 +9,7 @@ class configfile:
 
         f = open(configpath)
 
-        splitter=re.compile(u'^\s*([^=]+)\s*=\s*(.*)\s*$')
+        splitter=re.compile('^\s*([^=]+)\s*=\s*(.*)\s*$')
 
         for line in f:
             if line.startswith('#'):
@@ -26,7 +26,7 @@ class configfile:
             return self.content[key]
         except KeyError as e:
             if default is None:
-                print "error: No configuration key exists for %s" %key
+                print("error: No configuration key exists for %s" %key)
                 if noraise:
                     return None
                 raise e

@@ -1,10 +1,10 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 import threading
 import mock
 import logging
-import httplib
+import http.client
 import json
 
 
@@ -20,7 +20,7 @@ class TestAssetfolder(unittest.TestCase):
     def test_locator_valid(self):
         from asset_folder_importer.pluto.assetfolder import AssetFolderLocator
         
-        conn = httplib.HTTPConnection('localhost',8080)
+        conn = http.client.HTTPConnection('localhost',8080)
         okstatus=json.dumps({"status": "ok","path": "/path/to/my/asset_folder","project": "VX-13"})
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(okstatus,200))
@@ -35,7 +35,7 @@ class TestAssetfolder(unittest.TestCase):
     def test_locator_invalid(self):
         from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
         
-        conn = httplib.HTTPConnection('localhost', 8080)
+        conn = http.client.HTTPConnection('localhost', 8080)
         errstatus = json.dumps({"status": "notfound"})
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(errstatus, 404))
@@ -48,7 +48,7 @@ class TestAssetfolder(unittest.TestCase):
     def test_locator_error(self):
         from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, HTTPError
         
-        conn = httplib.HTTPConnection('localhost', 8080)
+        conn = http.client.HTTPConnection('localhost', 8080)
         errstatus = json.dumps({"status": "error", "error": "some trace"})
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(errstatus, 500))

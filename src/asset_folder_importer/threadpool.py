@@ -1,4 +1,4 @@
-from Queue import PriorityQueue
+from queue import PriorityQueue
 from mutex import mutex
 from time import sleep, time
 
@@ -23,7 +23,7 @@ class ThreadPool(object):
     scale_down_longtimeout = 30
     scale_down_wait = 1         #wait this number of seconds between checking for terminating threads
     
-    class ScaleDownError(StandardError):
+    class ScaleDownError(Exception):
         pass
     
     def __init__(self, thread_cls, initial_size=1, min_size=0, max_size=10, *args,**kwargs):

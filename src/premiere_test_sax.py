@@ -38,11 +38,11 @@ global vs_pathmap
 vs_pathmap = {}
 
 
-class InvalidDataError(StandardError):
+class InvalidDataError(Exception):
     pass
 
 
-class NoMediaError(StandardError):
+class NoMediaError(Exception):
     pass
 
 
@@ -183,7 +183,7 @@ parser = sax.make_parser()
 h = PremiereSAXHandler()
 parser.setContentHandler(h)
 
-print "Opening {0}".format(argv[1])
+print("Opening {0}".format(argv[1]))
 try:
     f = gzip.open(argv[1])
     parser.parse(f)

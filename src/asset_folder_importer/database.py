@@ -10,15 +10,15 @@ import datetime as dt
 import logging
 
 
-class DataError(StandardError):
+class DataError(Exception):
     pass
 
 
-class ArgumentError(StandardError):
+class ArgumentError(Exception):
     pass
 
 
-class AlreadyLinkedError(StandardError):
+class AlreadyLinkedError(Exception):
     def __init__(self, fileid, vsprojectid):
         self.fileid = fileid
         self.vsprojectid = vsprojectid
@@ -64,7 +64,7 @@ class importer_db:
             cursor.execute(sqlcmd)
             self.conn.commit()
         except psycopg2.ProgrammingError as e:
-            print "Warning: %s" % e.message
+            print("Warning: %s" % e.message)
             self.conn.rollback()
 
     def __del__(self):
@@ -216,7 +216,7 @@ class importer_db:
         if not self.clientversion:
             raise ArgumentError("Cannot call database::lastrun_endtime without the client name/version string set. Call __init__ properly first.")
 
-        matches = re.search(u'^([\w\d_\-]+)',self.clientversion)
+        matches = re.search('^([\w\d_\-]+)',self.clientversion)
         if matches is None:
             raise ArgumentError("database::lastrun_endtime - Client version string does not provide a script name to search for at the start")
 
@@ -315,7 +315,7 @@ class importer_db:
     def upsert_edit_project(self,filepath,filename,uuid,version,desc=None,opens_with=None):
         cursor = self.conn.cursor()
 
-        matches=re.search(u'(\.[^\.]+)$',filename)
+        matches=re.search('(\.[^\.]+)$',filename)
         file_xtn=""
         if matches is not None:
             file_xtn=str(matches.group(1))
@@ -347,7 +347,7 @@ class importer_db:
     def log_project_issue(self,filepath,filename,problem="",detail="",desc=None,opens_with=None):
         cursor = self.conn.cursor()
 
-        matches=re.search(u'(\.[^\.]+)$',filename)
+        matches=re.search('(\.[^\.]+)$',filename)
         file_xtn = ""
         if matches is not None:
             file_xtn=str(matches.group(1))
@@ -360,8 +360,8 @@ class importer_db:
             cursor.execute("""insert into edit_projects (filename,filepath,type,problem,problem_detail,lastseen,valid)
             values (%s,%s,%s,%s,%s,now(),false) returning id""", (filename,filepath,typenum,problem,detail))
         except psycopg2.IntegrityError as e:
-            print str(e)
-            print traceback.format_exc()
+            print(str(e))
+            print(traceback.format_exc())
             self.conn.rollback()
             cursor.execute("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
         #print cursor.mogrify("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
@@ -441,14 +441,14 @@ class importer_db:
         cursor=self.conn.cursor()
 
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
-        path = re.sub(u'^/Volumes','/srv',path)
+        path = re.sub('^/Volumes','/srv',path)
 
         cursor.execute("select * from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
-        fields = map(lambda x: x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
         result=cursor.fetchone()
 
         if result:
-            return dict(zip(fields,result))
+            return dict(list(zip(fields,result)))
         return None
 
     def get_vidispine_id(self, path):
@@ -464,7 +464,7 @@ class importer_db:
         cursor=self.conn.cursor()
 
         #FIXME: this should be separated out into a seperate path mapping object, maybe inside config
-        path = re.sub(u'^/Volumes','/srv',path)
+        path = re.sub('^/Volumes','/srv',path)
 
         cursor.execute("select id from files where filepath=%s and filename=%s",(os.path.dirname(path),os.path.basename(path)))
         result=cursor.fetchone()
@@ -489,10 +489,10 @@ class importer_db:
         cursor=self.conn.cursor()
         cursor.execute(sqlcmd)
 
-        fields = map(lambda x: x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
 
         for result in cursor:
-            yield dict(zip(fields,result))
+            yield dict(list(zip(fields,result)))
 
     def _gen_sqlcmd(self,table, since=None,pathspec=None,namespec=None,reverse_order=False):
         sql_params = []
@@ -501,7 +501,7 @@ class importer_db:
             try:
                 sql_params.append("lastseen > '"+since.isoformat('T')+"'")
             except Exception as e:
-                print "Warning: importer_db::files: %s. 'since' argument is ignored." % e
+                print("Warning: importer_db::files: %s. 'since' argument is ignored." % e)
 
         if pathspec:
             sql_params.append("filepath like '%{path}%'".format(path=pathspec))
@@ -529,26 +529,30 @@ class importer_db:
         cursor=self.conn.cursor()
         cursor.execute(sqlcmd)
         #http://stackoverflow.com/questions/5010042/mysql-get-column-name-or-alias-from-query
-        fields = map(lambda x: x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
 
         for row in cursor:
-            entity = dict(zip(fields, row))  #should return a dict with the column names as keys and data as values
+            entity = dict(list(zip(fields, row)))  #should return a dict with the column names as keys and data as values
             yield entity
 
     def deleted_files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
         sqlcmd = self._gen_sqlcmd("deleted_files", since=since,pathspec=pathspec,namespec=namespec,reverse_order=reverse_order)
         cursor = self.conn.cursor()
         cursor.execute(sqlcmd)
-        fields = map(lambda x:x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
 
         for row in cursor:
-            yield dict(zip(fields, row))
+            yield dict(list(zip(fields, row)))
 
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long) and not isinstance(fileid,int):
-            raise ArgumentError("fileid argument must be an integer")
+        try:
+            if not isinstance(fileid, long) and not isinstance(fileid, int):
+                raise ArgumentError("fileid argument must be an integer")
+        except:
+            if not isinstance(fileid, int):
+                raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
         else:
@@ -557,10 +561,14 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long) and not isinstance(fileid,int):
-            raise ArgumentError("fileid argument must be an integer")
+        try:
+            if not isinstance(fileid, long) and not isinstance(fileid, int):
+                raise ArgumentError("fileid argument must be an integer")
+        except:
+            if not isinstance(fileid, int):
+                raise ArgumentError("fileid argument must be an integer")
 
-        if not re.match(u'^\w{2}-\d+',vsid):
+        if not re.match('^\w{2}-\d+',vsid):
             msg="Vidispine id {0} does not look like an integer".format(vsid)
             raise ArgumentError(msg)
 
@@ -662,13 +670,13 @@ class importer_db:
         cursor=self.conn.cursor()
         cursor.execute("select * from prelude_clips where id={0}".format(preludeid))
 
-        fields = map(lambda x: x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
 
         row=cursor.fetchone()
         if row is None:
             return None
 
-        return dict(zip(fields,row))
+        return dict(list(zip(fields,row)))
 
     def get_prelude_project(self,projid):
         if not isinstance(projid,int):
@@ -677,11 +685,11 @@ class importer_db:
         cursor=self.conn.cursor()
         cursor.execute("select * from prelude_projects where id={0}".format(projid))
 
-        fields = map(lambda x: x[0], cursor.description)
+        fields = [x[0] for x in cursor.description]
 
         row=cursor.fetchone()
 
-        return dict(zip(fields,row))
+        return dict(list(zip(fields,row)))
 
     def update_prelude_clip_fileref(self,preludeid,fileid):
         cursor=self.conn.cursor()
@@ -698,6 +706,6 @@ class importer_db:
             cursor=self.conn.cursor()
             cursor.execute("insert into sidecar_files (file_ref,sidecar_path,sidecar_name) values (%s,%s,%s)", (fileid,sidecar_dir,sidecar_name))
         except:
-            print "Unable to update sidecar table"
+            print("Unable to update sidecar table")
             self.conn.rollback()
-            raise StandardError("Debug: sidecar update failed")
+            raise Exception("Debug: sidecar update failed")

@@ -66,7 +66,7 @@ class UpdateVsThread(threading.Thread):
         else:
             return False
 
-    class NoUpdateNeeded(StandardError):
+    class NoUpdateNeeded(Exception):
         pass
 
     def check_should_update(self, filepath):

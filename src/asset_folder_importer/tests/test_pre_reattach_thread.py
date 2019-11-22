@@ -1,12 +1,12 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 import threading
 import mock
 import logging
-import httplib
+import http.client
 import json
-from Queue import PriorityQueue
+from queue import PriorityQueue
 
 
 class FakeConfig(object):

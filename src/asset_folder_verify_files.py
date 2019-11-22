@@ -69,7 +69,7 @@ try:
 
     c=0
     for fileref in db.files():
-        print("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)),
+        print(("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)), end=' ')
         c+=1
         if c>=100:
             logger.info("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting))

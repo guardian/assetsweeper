@@ -77,6 +77,6 @@ def find_files(cfg,db, raven_client=None):
                     db.insert_sysparam("warning", "Could not stat {0}: {1}".format(dirpath, str(e)))
                     raven_client.captureException()
             n+=1
-            print "%d files...\r" %n
+            print("%d files...\r" %n)
 
     return n

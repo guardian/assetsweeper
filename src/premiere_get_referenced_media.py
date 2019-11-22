@@ -120,7 +120,7 @@ try:
 
     if not os.path.exists(start_dir):
         msg = "The given start path %s does not exist." % start_dir
-        raise StandardError(msg)
+        raise Exception(msg)
 
     for (dirpath, dirname, filenames) in os.walk(start_dir):
         for f in filenames:

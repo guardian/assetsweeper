@@ -1,8 +1,8 @@
-from __future__ import absolute_import
+
 import unittest
 import os
 import threading
-from Queue import Queue
+from queue import Queue
 import mock
 
 import logging
