@@ -1,4 +1,4 @@
-#!/usr/bin python
+#!/usr/bin/python3
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_verify_files $Rev$ $LastChangedDate$'
 __scriptname__ = 'asset_folder_verify_files'
@@ -69,7 +69,7 @@ try:
 
     c=0
     for fileref in db.files():
-        print(("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)), end=' ')
+        print("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting)),
         c+=1
         if c>=100:
             logger.info("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting))

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'premiere_get_referenced_media $Rev$ $LastChangedDate$'
 __scriptname__ = 'premiere_get_referenced_media'

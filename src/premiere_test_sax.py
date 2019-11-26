@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 import xml.etree.ElementTree as ET
 import xml.sax as sax
 import sys

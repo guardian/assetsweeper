@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 import psycopg2
 import datetime
 from asset_folder_importer.config import configfile

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_vsingester $Rev: 273 $ $LastChangedDate: 2015-07-28 22:00:39 +0100 (Tue, 28 Jul 2015) $'

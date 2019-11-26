@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #Requires: python-psycopg2.x86_64
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'

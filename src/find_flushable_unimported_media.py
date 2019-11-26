@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __version__ = "find_flushable_unimported_media v1"
 
