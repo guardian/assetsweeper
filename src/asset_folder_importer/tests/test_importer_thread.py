@@ -105,8 +105,7 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-                                   'pluto_scheme': 'http'
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                                }), dbconn=db)
             
             mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
@@ -126,8 +125,7 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-                                   'pluto_scheme': 'http'
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                                }), dbconn=db)
             
             mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
@@ -158,8 +156,7 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-                                   'pluto_scheme': 'http'
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                                }), dbconn=db)
 
             i.st = mockstorage
@@ -198,8 +195,7 @@ class TestImporterThread(unittest.TestCase):
             mock_vsfile.importToItem = mock.MagicMock(return_value=fake_job)
 
             i=ImporterThread(None,None,self.FakeConfig({
-                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-                'pluto_scheme': 'http'
+                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
             }),dbconn=db,import_timeout=4)  #set importer timeout to 4s
             start_time = time()
             with self.assertRaises(ImportStalled):
@@ -238,8 +234,7 @@ class TestImporterThread(unittest.TestCase):
         mock_fileref.ctime = datetime(2018,01,04,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-            'pluto_scheme': 'http'
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
         }),dbconn=mock_db)
 
         result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file")
@@ -265,8 +260,7 @@ class TestImporterThread(unittest.TestCase):
         mock_fileref.ctime = datetime(2018,01,04,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-            'pluto_scheme': 'http'
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
         }),dbconn=mock_db)
 
         result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file",media_category="Branding")
@@ -322,8 +316,7 @@ class TestImporterThread(unittest.TestCase):
         }
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
-            'pluto_scheme': 'http'
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
         }),dbconn=mock_db)
         i.st = mock_storage
         i.ask_pluto_for_projectid = MagicMock(return_value=None) #there will be no record of this as an asset folder

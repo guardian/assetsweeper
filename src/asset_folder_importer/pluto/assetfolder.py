@@ -46,7 +46,8 @@ class AssetFolderLocator(object):
             path=urllib.quote(path,'')
         )
         self._logger.debug("retrieving info from {0}".format(url))
-        self._http = self.new_connection(scheme=self._scheme)
+        if self.http_client is None:
+            self._http = self.new_connection(scheme=self._scheme)
         self._http.request("GET",url,headers=headers)
         response = self._http.getresponse()
         raw_content = response.read() #must always read or you get ResponseNotReady when re-using
