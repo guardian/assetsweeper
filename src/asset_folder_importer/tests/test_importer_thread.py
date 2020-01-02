@@ -238,7 +238,8 @@ class TestImporterThread(unittest.TestCase):
         mock_fileref.ctime = datetime(2018,01,04,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+            'pluto_scheme': 'http'
         }),dbconn=mock_db)
 
         result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file")
@@ -264,7 +265,8 @@ class TestImporterThread(unittest.TestCase):
         mock_fileref.ctime = datetime(2018,01,04,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+            'pluto_scheme': 'http'
         }),dbconn=mock_db)
 
         result = i.render_xml(mock_fileref,None,None,None,None,None,"/path/to/my/test/file",media_category="Branding")
@@ -320,7 +322,8 @@ class TestImporterThread(unittest.TestCase):
         }
 
         i=ImporterThread(None,None,self.FakeConfig({
-            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+            'pluto_scheme': 'http'
         }),dbconn=mock_db)
         i.st = mock_storage
         i.ask_pluto_for_projectid = MagicMock(return_value=None) #there will be no record of this as an asset folder
