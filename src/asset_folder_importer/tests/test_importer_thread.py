@@ -126,7 +126,8 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                                   'pluto_scheme': 'http'
                                }), dbconn=db)
             
             mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
@@ -157,7 +158,8 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                                   'pluto_scheme': 'http'
                                }), dbconn=db)
 
             i.st = mockstorage
@@ -196,7 +198,8 @@ class TestImporterThread(unittest.TestCase):
             mock_vsfile.importToItem = mock.MagicMock(return_value=fake_job)
 
             i=ImporterThread(None,None,self.FakeConfig({
-                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                'pluto_scheme': 'http'
             }),dbconn=db,import_timeout=4)  #set importer timeout to 4s
             start_time = time()
             with self.assertRaises(ImportStalled):
