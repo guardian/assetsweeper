@@ -25,6 +25,7 @@ class TestAssetfolder(unittest.TestCase):
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(okstatus,200))
         conn.request = mock.MagicMock()
+        conn.connect = mock.MagicMock()
         
         l = AssetFolderLocator(passwd='fake_password',http_client=conn)
         
@@ -40,6 +41,7 @@ class TestAssetfolder(unittest.TestCase):
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(errstatus, 404))
         conn.request = mock.MagicMock()
+        conn.connect = mock.MagicMock()
         
         l = AssetFolderLocator(passwd='fake_password', http_client=conn)
         
@@ -53,6 +55,7 @@ class TestAssetfolder(unittest.TestCase):
         
         conn.getresponse = mock.MagicMock(return_value=self.FakeResponse(errstatus, 500))
         conn.request = mock.MagicMock()
+        conn.connect = mock.MagicMock()
         
         l = AssetFolderLocator(passwd='fake_password', http_client=conn)
         
