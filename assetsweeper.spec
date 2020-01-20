@@ -16,7 +16,7 @@ Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Andy Gallagher <andy.gallagher@theguardian.com>
 AutoReqProv: no #this line will stop rpm assuming that the packaging virtualenv is the right place to look for python
-Requires: python(abi) = 2.7 python >= 2.7 python-psycopg2
+Requires: python(abi) = 3.0 python >= 3.0 python-psycopg2
 
 %description
 Suite of five scripts that ingests media into Vidispine in a controlled and manageable way
@@ -25,10 +25,10 @@ Suite of five scripts that ingests media into Vidispine in a controlled and mana
 %setup -n %{name}-%{unmangled_version}
 
 %build
-python setup.py build
+python3 setup.py build
 
 %install
-python setup.py install -O1 --prefix=/usr --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+python3 setup.py install -O1 --prefix=/usr --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 
 %clean
 rm -rf $RPM_BUILD_ROOT
