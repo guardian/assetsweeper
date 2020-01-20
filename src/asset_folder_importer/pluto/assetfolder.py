@@ -22,7 +22,7 @@ class AssetFolderLocator(object):
         self._port=port
         self._user=user
         self._passwd=passwd
-        self._http = http_client if http_client is not None else http.client.HTTPConnection(self._host, self._port)
+        self._http = http_client if http_client is not None else self.new_connection(scheme=scheme)
         self._logger=logger if logger is not None else logging.getLogger(__name__)
 
     def new_connection(self,scheme="http"):
@@ -47,7 +47,7 @@ class AssetFolderLocator(object):
             path=urllib.parse.quote(path,'')
         )
         self._logger.debug("retrieving info from {0}".format(url))
-        
+        self._http.connect()
         self._http.request("GET",url,headers=headers)
         response = self._http.getresponse()
         raw_content = response.read() #must always read or you get ResponseNotReady when re-using

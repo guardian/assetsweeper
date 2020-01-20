@@ -90,6 +90,9 @@ class TestImporterThread(unittest.TestCase):
             url = urllib.parse.unquote(url)
             if url.endswith('/path/to/my/assetfolder'):
                 self.jackpot=True
+
+        def connect(self):
+            return mock.MagicMock()
         
     def test_find_invalid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
@@ -104,7 +107,8 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                                   'pluto_scheme': 'http'
                                }), dbconn=db)
             
             mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
@@ -124,7 +128,8 @@ class TestImporterThread(unittest.TestCase):
             logger.setLevel(logging.ERROR)
             i = ImporterThread(None, None,
                                self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir),
+                                   'pluto_scheme': 'http'
                                }), dbconn=db)
             
             mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
