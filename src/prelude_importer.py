@@ -89,7 +89,7 @@ try:
             except InvalidXMLException as e:
                 msg = "WARNING: {name} is corrupted or not a Prelude project: {error}".format(
                     name=os.path.join(dirpath,name),
-                    error=e.message
+                    error=e
                 )
                 db.insert_sysparam("warning",msg)
                 db.commit()
@@ -97,7 +97,7 @@ try:
 except Exception as e:
     msg = "ERROR: {0}: {1}".format(
         e.__repr__(),
-        e.message
+        e
     )
     st='error'
     db.insert_sysparam("error",msg)
