@@ -403,8 +403,6 @@ class importer_db:
         """
         cursor=self.conn.cursor()
         self.conn.commit()
-        safe_filepath = filepath.decode('utf-8', 'strict')
-        safe_filename = filename.decode('utf-8', 'strict')
 
         #does the file already exist? If so leave it (avoiding database bloat)
         cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath,filename))
@@ -414,13 +412,13 @@ class importer_db:
             return
 
         try:
-            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (safe_filename,safe_filepath))
+            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (filename, filepath))
             inserted_record_id = cursor.fetchone()[0]
         except psycopg2.IntegrityError as e:
             #this should normally not happen, but it's possible for a race condition to develop
             #between the SELECT check and the INSERT command if multiple instances are running so it's kept to deal with that
             self.conn.rollback()
-            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (safe_filename, safe_filepath))
+            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (filename, filepath))
             inserted_record_id = cursor.fetchone()[0]
 
         sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
