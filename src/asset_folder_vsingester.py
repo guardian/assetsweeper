@@ -19,7 +19,6 @@ PERMISSIONSCRIPT = "/usr/bin/asset_permissions.pl"
 XML_CHECK_TIMEOUT = 60  #wait up to 60s for XML validation
 import sys
 importlib.reload(sys)
-sys.setdefaultencoding('utf-8')
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
