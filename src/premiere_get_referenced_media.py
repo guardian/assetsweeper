@@ -113,7 +113,6 @@ total_no_vsitem = 0
 total_not_in_db = 0
 
 try:
-    global vs_pathmap
     #load up a mapping table from server system path to Vidispine storages. This is used by process_premiere_project to work out where to look for files in Vidispine
     vs_pathmap = VSStoragePathMap(uriType="file://", stripType=True, host=cfg.value('vs_host'),
                                   port=cfg.value('vs_port'), user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
@@ -163,7 +162,7 @@ try:
             except VSException as e:
                 raven_client.captureException()
                 lg.warning(
-                    "Got error of type %s when processing premiere project %s (%s)" % (e.__class__, filepath, e.message))
+                    "Got error of type %s when processing premiere project %s (%s)" % (e.__class__, filepath, e))
 
     db.insert_sysparam("total_projects", total_projects)
     db.insert_sysparam("total_referenced_media", total_references)
@@ -183,7 +182,7 @@ except Exception as e:
     raven_client.captureException()
     lg.error(traceback.format_exc())
 
-    msgstring = "{0}: {1}".format(str(e.__class__), e.message)
+    msgstring = "{0}: {1}".format(str(e.__class__), e)
     db.cleanuperror()
     db.insert_sysparam("exit", "error")
     db.insert_sysparam("errormsg", msgstring)
