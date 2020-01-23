@@ -183,7 +183,7 @@ parser = sax.make_parser()
 h = PremiereSAXHandler()
 parser.setContentHandler(h)
 
-print("Opening {0}".format(argv[1]))
+logging.info("Opening {0}".format(argv[1]))
 try:
     f = gzip.open(argv[1])
     parser.parse(f)

@@ -2,6 +2,8 @@ __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 
 import re
 #from pprint import pprint
+import logging
+
 
 class configfile:
     def __init__(self,configpath):
@@ -26,7 +28,7 @@ class configfile:
             return self.content[key]
         except KeyError as e:
             if default is None:
-                print("error: No configuration key exists for %s" %key)
+                logging.error("error: No configuration key exists for %s" % key)
                 if noraise:
                     return None
                 raise e

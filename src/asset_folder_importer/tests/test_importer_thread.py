@@ -234,8 +234,8 @@ class TestImporterThread(unittest.TestCase):
 
         mock_db = MagicMock(target=importer_db)
         mock_fileref = MagicMock(target=VSFile)
-        mock_fileref.mtime = datetime(2018,0o1,0o4,15,32,00)
-        mock_fileref.ctime = datetime(2018,0o1,0o4,15,30,00)
+        mock_fileref.mtime = datetime(2018,1,4,15,32,00)
+        mock_fileref.ctime = datetime(2018,1,4,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
             'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)

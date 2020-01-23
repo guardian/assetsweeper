@@ -64,7 +64,7 @@ class importer_db:
             cursor.execute(sqlcmd)
             self.conn.commit()
         except psycopg2.ProgrammingError as e:
-            print("Warning: %s" % e.message)
+            logging.warning("Warning: %s" % e.message)
             self.conn.rollback()
 
     def __del__(self):
@@ -360,8 +360,8 @@ class importer_db:
             cursor.execute("""insert into edit_projects (filename,filepath,type,problem,problem_detail,lastseen,valid)
             values (%s,%s,%s,%s,%s,now(),false) returning id""", (filename,filepath,typenum,problem,detail))
         except psycopg2.IntegrityError as e:
-            print(str(e))
-            print(traceback.format_exc())
+            logging.error(str(e))
+            logging.error(traceback.format_exc())
             self.conn.rollback()
             cursor.execute("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
         #print cursor.mogrify("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
@@ -499,7 +499,7 @@ class importer_db:
             try:
                 sql_params.append("lastseen > '"+since.isoformat('T')+"'")
             except Exception as e:
-                print("Warning: importer_db::files: %s. 'since' argument is ignored." % e)
+                logging.warning("Warning: importer_db::files: %s. 'since' argument is ignored." % e)
 
         if pathspec:
             sql_params.append("filepath like '%{path}%'".format(path=pathspec))
@@ -704,6 +704,6 @@ class importer_db:
             cursor=self.conn.cursor()
             cursor.execute("insert into sidecar_files (file_ref,sidecar_path,sidecar_name) values (%s,%s,%s)", (fileid,sidecar_dir,sidecar_name))
         except:
-            print("Unable to update sidecar table")
+            logging.error("Unable to update sidecar table")
             self.conn.rollback()
             raise Exception("Debug: sidecar update failed")

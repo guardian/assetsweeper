@@ -159,7 +159,6 @@ class ImporterThread(threading.Thread):
         kill_proc = lambda p: p.kill()
         t = threading.Timer(self._timeout, kill_proc, [proc])
         t.start()
-        #mdXML = b"%s" % mdXML
         try:
             (stdout, stderr) = proc.communicate(mdXML.encode("UTF-8"))
         finally:

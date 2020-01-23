@@ -29,7 +29,7 @@ class DirectPlutoLookup(object):
         request = "/gnm_asset_folder/lookup?path={0}".format(quote(checkpath,safe=''))
         self.logger.debug("Looking up URL " + request)
 
-        authstring = u"{0}:{1}".format(self._user, self._password)
+        authstring = "{0}:{1}".format(self._user, self._password)
         auth = base64.b64encode(authstring.encode("UTF-8"))
 
         headers = {

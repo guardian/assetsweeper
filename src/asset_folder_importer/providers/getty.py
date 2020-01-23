@@ -82,7 +82,7 @@ class Provider(BaseProvider):
             for k, v in list(x.items()):
                 if k!='text':
                     continue
-                print("\t{0}=>{1}".format(k,v))
+                logger.debug("\t{0}=>{1}".format(k, v))
                 if re.match(r'^\s*$',v):
                     break
                 rtn['gnm_asset_user_keywords'].append(v)

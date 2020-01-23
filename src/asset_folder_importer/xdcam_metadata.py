@@ -5,6 +5,8 @@ import xml.etree.ElementTree as ET
 import os
 import datetime
 from pprint import pprint
+import logging
+
 
 class PathNotFoundError(Exception):
     pass
@@ -215,5 +217,5 @@ class XDCAMImporter:
                 self.packageName=packageEl.attrib['name']
                 self.packageType=packageEl.attrib['type']
             except KeyError as e:
-                print("Warning: %s" % e.message)
+                logging.warning("Warning: %s" % e.message)
 

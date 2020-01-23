@@ -5,6 +5,7 @@ class VSMetadataList(dict):
     """
     def _recurse_dict(self, data, parent):
         from xml.etree.ElementTree import Element, SubElement
+        from gnmvidispine.vidispine_api import always_string
 
         rtn = []
         for k, v in list(data.items()):
@@ -15,7 +16,7 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'group', {'mode': 'add'})
                 nameEl = SubElement(el, 'name')
-                nameEl.text = str(k)
+                nameEl.text = always_string(k)
                 self._recurse_dict(v, el)
             elif isinstance(v, list):
                 if parent is None:
@@ -24,10 +25,10 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'field')
                 nameEl = SubElement(el, 'name')
-                nameEl.text=str(k)
+                nameEl.text=always_string(k)
                 for i in v:
                     valueEl = SubElement(el, 'value')
-                    valueEl.text = str(i)
+                    valueEl.text = always_string(i)
             else:
                 if parent is None:
                     el = Element('field')
@@ -35,9 +36,9 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'field')
                 nameEl = SubElement(el, 'name')
-                nameEl.text=str(k)
+                nameEl.text=always_string(k)
                 valueEl = SubElement(el, 'value')
-                valueEl.text = str(v)
+                valueEl.text = always_string(v)
         return rtn
 
     def _my_tostring(self, element, encoding="UTF-8", method="xml", xml_declaration=False):
@@ -178,4 +179,4 @@ if __name__ == '__main__':
 
     templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
     mdTemplate = templateEnv.get_template('vsasset_test.xml')
-    print((mdTemplate.render({'externalmeta': data.to_vs_xml()})))
+    logging.debug((mdTemplate.render({'externalmeta': data.to_vs_xml()})))

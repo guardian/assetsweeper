@@ -15,7 +15,7 @@ __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 
 import logging
 from . import database
-#from pprint import pprint
+
 
 class AssetImporterLoggingHandler(logging.Handler, object): #second inheritance is necessary to avoid TypeError on the super() call below
     def __init__(self,dbref,level=logging.WARN):

@@ -32,7 +32,7 @@ class AssetFolderLocator(object):
             return http.client.HTTPSConnection(self._host, self._port)
 
     def find_assetfolder(self, path):
-        authstring = u"{0}:{1}".format(self._user, self._passwd)
+        authstring = "{0}:{1}".format(self._user, self._passwd)
         auth = base64.b64encode(authstring.encode("UTF-8"))
 
         headers = {
