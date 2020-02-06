@@ -15,7 +15,7 @@ def check_mime(fullpath,db):
     try:
         (mt, encoding) = mimetypes.guess_type(fullpath, strict=False)
     except Exception as e:
-        db.insert_sysparam("warning", e.message)
+        db.insert_sysparam("warning", e)
 
     if mt is None or mt == 'None':
         mt = posix_get_mime(fullpath, db)

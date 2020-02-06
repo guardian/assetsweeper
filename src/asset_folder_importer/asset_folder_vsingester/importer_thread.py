@@ -219,8 +219,8 @@ class ImporterThread(threading.Thread):
                 return True
             except Exception as e:
                 self.db.insert_sysparam("warning", "Unable to add %s to collection %s: %s" % (
-                    vsfile.memberOfItem, cubaseref['project_id'], e.message))
-                self.logger.warning("Warning: %s" % e.message)
+                    vsfile.memberOfItem, cubaseref['project_id'], e))
+                self.logger.warning("Warning: %s" % e)
                 self.db.commit()
         else:
             #otherwise, ask Pluto's gnm_asset_folder plugin to look up the file path for us
@@ -266,14 +266,14 @@ class ImporterThread(threading.Thread):
                 self.logger.warning(traceback.format_exc())
                 self.db.insert_sysparam("warning", msgstring)
             except VSNotFound as e:
-                msgstring = "WARNING: File %s was not found: %s" % (filepath, e.message)
+                msgstring = "WARNING: File %s was not found: %s" % (filepath, e)
                 self.logger.warning(msgstring)
                 self.logger.warning(traceback.format_exc())
                 self.db.insert_sysparam("warning", msgstring)
                 # exit(1)
             except HTTPError as e:
                 msgstring = "WARNING: HTTP error communicating with Vidispine attempting to import %s: %s" % (
-                filepath, e.message)
+                filepath, e)
                 self.logger.warning(msgstring)
                 self.logger.warning(traceback.format_exc())
                 self.db.insert_sysparam("warning", msgstring)
@@ -573,5 +573,5 @@ class ImporterThread(threading.Thread):
                         vsfile.memberOfItem.importSidecar(metafile)
                         return True
                 except VSNotFound as e:
-                    self.logger.warning("Unable to find sidecar '%s': %s" % (metafile, e.message))
+                    self.logger.warning("Unable to find sidecar '%s': %s" % (metafile, e))
         return False

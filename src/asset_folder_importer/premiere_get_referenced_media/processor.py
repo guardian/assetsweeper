@@ -167,9 +167,9 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     try:
         pp.load(filepath)
     except Exception as e:
-        lg.error("Unable to read '%s': %s" % (filepath,e.message))
+        lg.error("Unable to read '%s': %s" % (filepath,e))
         lg.error(traceback.format_exc())
-        print("Unable to read '%s': %s" % (filepath,e.message))
+        print("Unable to read '%s': %s" % (filepath,e))
         traceback.print_exc()
         raven_client.captureException()
         return (0,0,0)

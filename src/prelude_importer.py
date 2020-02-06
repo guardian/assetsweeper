@@ -80,7 +80,7 @@ try:
             except NotPreludeProjectException as e:
                 msg = "WARNING: {name} is not a Prelude project: {error}".format(
                     name=os.path.join(dirpath,name),
-                    error=e.message
+                    error=e
                 )
                 db.insert_sysparam("warning",msg)
                 db.commit()
