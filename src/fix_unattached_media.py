@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import psycopg2
 import elasticsearch
@@ -119,13 +119,13 @@ try:
     pre_pool.safe_terminate()
     reattach_pool.safe_terminate()
     
-    print "------------------------------------------------\n\n"
+    print("------------------------------------------------\n\n")
     
     pprint(totals)
-    print "Invalid paths found:"
+    print("Invalid paths found:")
     pprint(invalid_paths)
 
-    print "Asset folders which could not be resolved to projects:"
+    print("Asset folders which could not be resolved to projects:")
     pprint(not_found)
     
 except Exception:
@@ -136,13 +136,13 @@ except Exception:
     pre_pool.safe_terminate()
     reattach_pool.safe_terminate()
 
-    print "------------------------------------------------\n\n"
+    print("------------------------------------------------\n\n")
 
     pprint(totals)
-    print "Invalid paths found:"
+    print("Invalid paths found:")
     pprint(invalid_paths)
 
-    print "Asset folders which could not be resolved to projects:"
+    print("Asset folders which could not be resolved to projects:")
     pprint(not_found)
     
     raise

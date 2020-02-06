@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_vsingester $Rev: 273 $ $LastChangedDate: 2015-07-28 22:00:39 +0100 (Tue, 28 Jul 2015) $'
@@ -7,9 +7,10 @@ __scriptname__ = 'asset_folder_vsingester'
 #this also requires python-setuptools to be installed
 from asset_folder_importer.config import configfile
 from optparse import OptionParser
-from Queue import Queue
+from queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
+import importlib
 
 MAXTHREADS = 8
 #suid perl script so we don't need to run the whole shebang as root
@@ -17,8 +18,6 @@ PERMISSIONSCRIPT = "/usr/bin/asset_permissions.pl"
 #set default encoding to utf-8 to prevent template errors
 XML_CHECK_TIMEOUT = 60  #wait up to 60s for XML validation
 import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(levelname)s - Thread %(thread)s - %(funcName)s: %(message)s'
@@ -79,7 +78,7 @@ def innerMainFunc(cfg,db,limit, keeplist):
         filepath = os.path.join(fileref['filepath'],fileref['filename'])
         # we need to remove the part of the filepath that corresponds to the storage path on the server
         for rootpath in possible_roots:
-            filepath = re.sub(u'^{0}'.format(rootpath),'',filepath)
+            filepath = re.sub('^{0}'.format(rootpath),'',filepath)
             n += 1
             input_queue.put([fileref,filepath,rootpath])
         if isinstance(limit, int):

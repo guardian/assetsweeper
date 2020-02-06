@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
 from pprint import pprint
@@ -116,7 +116,7 @@ try:
 except KeyError as e:
     logging.warning("Unable to purge old system messages as system_message_purge_time is not present in config file")
     raven_client.captureException()
-except StandardError as e:
+except Exception as e:
     logging.error("Unable to purge old system messages because of problem: {0}".format(traceback.format_exc()))
     raven_client.captureException()
 

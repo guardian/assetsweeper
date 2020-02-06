@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 ### This script is intended to tell Vidispine about _every_ file in the deleted_items table.
 ### It is not intended to be run on a regular basis; asset_folder_verify_files will do that. The intention is to run as a

@@ -1,6 +1,6 @@
 from urllib3.exceptions import ReadTimeoutError
 from elasticsearch.exceptions import ConnectionTimeout
-from collection_lookup import CollectionLookup
+from .collection_lookup import CollectionLookup
 from gnmvidispine.vs_item import VSItem,VSNotFound
 from .exceptions import *
 import logging

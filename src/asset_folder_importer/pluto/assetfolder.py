@@ -1,17 +1,17 @@
-import httplib
-import urllib
+import http.client
+import urllib.request, urllib.parse, urllib.error
 import logging
 import base64
 import json
 
 logger = logging.getLogger(__name__)
 
-class HTTPError(StandardError):
+class HTTPError(Exception):
     def __init__(self, url, responseobject):
         self.response = responseobject
         self.url = url
 
-class ProjectNotFound(StandardError):
+class ProjectNotFound(Exception):
     pass
 
 
@@ -27,12 +27,13 @@ class AssetFolderLocator(object):
 
     def new_connection(self,scheme="http"):
         if scheme=="http":
-            return httplib.HTTPConnection(self._host, self._port)
+            return http.client.HTTPConnection(self._host, self._port)
         else:
-            return httplib.HTTPSConnection(self._host, self._port)
+            return http.client.HTTPSConnection(self._host, self._port)
 
     def find_assetfolder(self, path):
-        auth = base64.encodestring('%s:%s' % (self._user, self._passwd)).replace('\n', '')
+        authstring = "{0}:{1}".format(self._user, self._passwd)
+        auth = base64.b64encode(authstring.encode("UTF-8"))
 
         headers = {
             'Authorization': "Basic %s" % auth,
@@ -43,7 +44,7 @@ class AssetFolderLocator(object):
             s=self._scheme,
             h=self._host,
             p=self._port,
-            path=urllib.quote(path,'')
+            path=urllib.parse.quote(path,'')
         )
         self._logger.debug("retrieving info from {0}".format(url))
         self._http.connect()
@@ -56,7 +57,7 @@ class AssetFolderLocator(object):
             raise ProjectNotFound(path)
         
         if response.status<200 or response.status>299:
-            logger.warning(u"Could not find asset folder: server returned {0} with body {1}".format(response.status, raw_content.decode("UTF-8")))
+            logger.warning("Could not find asset folder: server returned {0} with body {1}".format(response.status, raw_content))
             raise HTTPError(url, response)
         
         content = json.loads(raw_content)

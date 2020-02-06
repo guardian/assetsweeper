@@ -1,8 +1,9 @@
-from __future__ import absolute_import
+from future.standard_library import install_aliases
+install_aliases()
 import unittest
 import os
 import threading
-from Queue import Queue
+from queue import Queue
 import mock
 
 import logging

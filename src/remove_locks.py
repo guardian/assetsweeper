@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 import psycopg2
 import datetime
 from asset_folder_importer.config import configfile
@@ -19,22 +19,22 @@ scriptname = re.sub(r'[\'"\\;]',"",options.scriptname) #remove any nasties to pr
 cursor.execute("select pid,timestamp from system where key='script_version' and value like '{0}%' order by timestamp desc limit 1".format(scriptname))
 
 if cursor.rowcount==0:
-    print "No runs found for {0}!".format(scriptname)
+    print("No runs found for {0}!".format(scriptname))
     exit(1)
 
 row=cursor.fetchone()
 pid = int(row[0])
 
-print "Last run PID was {0} at {1}".format(pid,row[1])
+print("Last run PID was {0} at {1}".format(pid,row[1]))
 
 cursor.execute("select id,key,value,timestamp,pid from system where key='run_end' and pid=%s", (pid,))
 
 if cursor.rowcount==0:
-    print "Script is locked. Removing lock."
+    print("Script is locked. Removing lock.")
 
     cursor.execute("insert into system (key,value,pid) values ('run_end',%s,%s)", (datetime.datetime.now().isoformat(),str(pid),)
                    )
     conn.commit()
-    print "Done."
+    print("Done.")
 else:
-    print "Script is not locked."
+    print("Script is not locked.")

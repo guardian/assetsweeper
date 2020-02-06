@@ -2,7 +2,7 @@ import logging
 import re
 import os
 from gnmvidispine.vs_search import VSCollectionSearch, VSException
-from exceptions import *
+from .exceptions import *
 
 
 class CollectionLookup(object):

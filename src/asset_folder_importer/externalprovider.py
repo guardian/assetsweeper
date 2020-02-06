@@ -5,9 +5,10 @@ class VSMetadataList(dict):
     """
     def _recurse_dict(self, data, parent):
         from xml.etree.ElementTree import Element, SubElement
+        from gnmvidispine.vidispine_api import always_string
 
         rtn = []
-        for k, v in data.items():
+        for k, v in list(data.items()):
             if isinstance(v, dict):
                 if parent is None:
                     el = Element('group')
@@ -15,7 +16,7 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'group', {'mode': 'add'})
                 nameEl = SubElement(el, 'name')
-                nameEl.text = unicode(k)
+                nameEl.text = always_string(k)
                 self._recurse_dict(v, el)
             elif isinstance(v, list):
                 if parent is None:
@@ -24,10 +25,10 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'field')
                 nameEl = SubElement(el, 'name')
-                nameEl.text=unicode(k)
+                nameEl.text=always_string(k)
                 for i in v:
                     valueEl = SubElement(el, 'value')
-                    valueEl.text = unicode(i)
+                    valueEl.text = always_string(i)
             else:
                 if parent is None:
                     el = Element('field')
@@ -35,9 +36,9 @@ class VSMetadataList(dict):
                 else:
                     el = SubElement(parent, 'field')
                 nameEl = SubElement(el, 'name')
-                nameEl.text=unicode(k)
+                nameEl.text=always_string(k)
                 valueEl = SubElement(el, 'value')
-                valueEl.text = unicode(v)
+                valueEl.text = always_string(v)
         return rtn
 
     def _my_tostring(self, element, encoding="UTF-8", method="xml", xml_declaration=False):
@@ -56,7 +57,7 @@ class VSMetadataList(dict):
         #return "".join(data)
         lines = self._recurse_dict(self, None)
 
-        return "\n".join(map(lambda x: self._my_tostring(x, encoding="UTF-8"), lines))
+        return "\n".join([self._my_tostring(x, encoding="UTF-8") for x in lines])
 
 
 class ExternalProviderList(object):
@@ -104,7 +105,7 @@ class ExternalProviderList(object):
         :return:
         """
         import re
-        return map(lambda x: re.compile(x),relist)
+        return [re.compile(x) for x in relist]
 
     def _sanitise(self,data):
         if not 'grouped' in data:
@@ -121,7 +122,7 @@ class ExternalProviderList(object):
         :return: a dictionary of provided metadata, or None if no providers were found
         """
         import re
-        for provider_name, provider_info in self._data.items():
+        for provider_name, provider_info in list(self._data.items()):
             if not 'match' in provider_info:
                 self.logger.warning("No match parameter in {0} block in yaml list {1}".format(provider_name,
                                                                                               self.filename))
@@ -153,6 +154,7 @@ class ExternalProviderList(object):
         self.logger.warning("No metadata provider matches filename {0}".format(filename))
         return None
 
+
 if __name__ == '__main__':
     import logging
     from sys import argv
@@ -178,4 +180,4 @@ if __name__ == '__main__':
 
     templateEnv = Environment(loader=PackageLoader('asset_folder_importer','metadata_templates'))
     mdTemplate = templateEnv.get_template('vsasset_test.xml')
-    print(mdTemplate.render({'externalmeta': data.to_vs_xml()}))
+    logging.debug((mdTemplate.render({'externalmeta': data.to_vs_xml()})))

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __version__ = "find_flushable_unimported_media v1"
 
@@ -6,7 +6,7 @@ import logging
 from optparse import OptionParser
 from asset_folder_importer.config import configfile
 from asset_folder_importer.database import importer_db
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import requests
 import os.path
 import time
@@ -26,7 +26,7 @@ class AssetFolderCache(object):
         self._cache = {}
 
     def get_pluto_info(self, asset_folder_path):
-        url = "http://{0}:{1}/gnm_asset_folder/lookup?path={2}".format(cfg.value('pluto_host'), cfg.value('pluto_port'), urllib.quote(asset_folder_path, safe=''))
+        url = "http://{0}:{1}/gnm_asset_folder/lookup?path={2}".format(cfg.value('pluto_host'), cfg.value('pluto_port'), urllib.parse.quote(asset_folder_path, safe=''))
         logger.debug(url)
 
         while True:
@@ -37,7 +37,7 @@ class AssetFolderCache(object):
                 return None
             elif response.status_code>=400 and response.status_code<500:
                 logger.error("Error {0} accessing {1}: {2}".format(response.status_code, url, response.text))
-                raise StandardError("Could not look up")
+                raise Exception("Could not look up")
             else:
                 logger.warning("Error {0} accessing {1}. Retrying in 10s".format(response.status_code, url))
                 time.sleep(10)
@@ -52,7 +52,7 @@ class AssetFolderCache(object):
                 return response.json()
             elif response.status_code>=400 and response.status_code<500:
                 logger.error("Error {0} accessing {1}: {2}".format(response.status_code, url, response.text))
-                raise StandardError("Could not look up")
+                raise Exception("Could not look up")
             else:
                 logger.warning("Error {0} accessing {1}. Retrying in 10s".format(response.status_code, url))
                 time.sleep(10)

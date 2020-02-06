@@ -89,7 +89,7 @@ class PreReattachThread(Thread):
         self._outq.put({'itemid': item_id, 'collectionid': collection_id}, priority=10)
     
     def run(self):
-        from Queue import Empty
+        from queue import Empty
         while True:
             try:
                 (prio, item) = self._inq.get(block=True, timeout=self.timeout)
