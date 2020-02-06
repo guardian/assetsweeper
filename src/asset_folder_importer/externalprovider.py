@@ -154,6 +154,7 @@ class ExternalProviderList(object):
         self.logger.warning("No metadata provider matches filename {0}".format(filename))
         return None
 
+
 if __name__ == '__main__':
     import logging
     from sys import argv
