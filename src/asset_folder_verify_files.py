@@ -111,6 +111,6 @@ except Exception as e:
     if update_vs_pool is not None:
         update_vs_pool.safe_terminate()
     db.insert_sysparam("exit","error")
-    db.insert_sysparam("error",e.message)
+    db.insert_sysparam("error",e)
     db.insert_sysparam("traceback",traceback.format_exc())
     db.end_run(status="error")

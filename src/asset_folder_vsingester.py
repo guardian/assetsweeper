@@ -164,10 +164,10 @@ try:
     db.insert_sysparam("exit","success")
 except Exception as e:
     logging.error("An error occurred:")
-    logging.error(str(e.__class__) + ": " + e.message)
+    logging.error(str(e.__class__) + ": " + e)
     logging.error(traceback.format_exc())
 
-    msgstring="{0}: {1}".format(str(e.__class__),e.message)
+    msgstring="{0}: {1}".format(str(e.__class__),e)
     db.cleanuperror()
     db.insert_sysparam("exit","error")
     db.insert_sysparam("errormsg",msgstring)

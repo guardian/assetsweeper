@@ -64,7 +64,7 @@ class importer_db:
             cursor.execute(sqlcmd)
             self.conn.commit()
         except psycopg2.ProgrammingError as e:
-            logging.warning("Warning: %s" % e.message)
+            logging.warning("Warning: %s" % e)
             self.conn.rollback()
 
     def __del__(self):

@@ -128,7 +128,7 @@ try:
     db.commit()
 except Exception as e:
     db.insert_sysparam("exit","error")
-    db.insert_sysparam("error",e.message)
+    db.insert_sysparam("error",e)
     db.insert_sysparam("traceback",traceback.format_exc())
     logging.error(traceback.format_exc())
     db.commit()
