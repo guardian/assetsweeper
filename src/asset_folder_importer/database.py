@@ -618,10 +618,10 @@ class importer_db:
         self.conn.commit()
 
         #does the prelude clip entry already exist? If so leave it (avoiding database bloat)
-        cursor.execute("SELECT id FROM prelude_clips WHERE asset_name=%s AND asset_type=%s", (asset_name.decode("utf-8"), asset_type.decode("utf-8"), ))
+        cursor.execute("SELECT id FROM prelude_clips WHERE asset_name=%s AND asset_type=%s", (asset_name.decode("utf-8"), asset_type, ))
         result = cursor.fetchone()
         if result is not None:
-            logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name.decode("utf-8"), asset_type.decode("utf-8")))
+            logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name.decode("utf-8"), asset_type))
             return result[0]
 
         try:
