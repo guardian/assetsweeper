@@ -38,7 +38,7 @@ class preludeclip:
         if not 'FilePath' in self.dataContent:
             return None
 
-        fileref=db.fileId(self.dataContent['FilePath'].encode('utf-8'))
+        fileref=db.fileId(self.dataContent['FilePath'])
         if fileref is not None:
             logging.debug("Data going into update_prelude_clip_fileref: database_id = {0} fileref = {1}".format(self.database_id,fileref))
             db.update_prelude_clip_fileref(self.database_id,fileref)
