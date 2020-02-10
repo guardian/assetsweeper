@@ -33,7 +33,7 @@ class AssetFolderLocator(object):
 
     def find_assetfolder(self, path):
         authstring = "{0}:{1}".format(self._user, self._passwd)
-        auth = base64.b64encode(authstring.encode("UTF-8"))
+        auth = base64.b64encode(authstring.encode("UTF-8")).decode("UTF-8")
 
         headers = {
             'Authorization': "Basic %s" % auth,
