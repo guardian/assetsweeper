@@ -3,6 +3,7 @@ import urllib.request, urllib.parse, urllib.error
 import logging
 import base64
 import json
+from gnmvidispine.vidispine_api import always_string
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class AssetFolderLocator(object):
 
     def find_assetfolder(self, path):
         authstring = "{0}:{1}".format(self._user, self._passwd)
-        auth = base64.b64encode(authstring.encode("UTF-8"))
+        auth = always_string(base64.b64encode(authstring.encode("UTF-8")))
 
         headers = {
             'Authorization': "Basic %s" % auth,
