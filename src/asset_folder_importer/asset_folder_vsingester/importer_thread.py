@@ -193,6 +193,9 @@ class ImporterThread(threading.Thread):
                     return None #we've run out of path to check
                 project_id = l.find_assetfolder(test_path)
                 return project_id
+            except HTTPError:
+                self.logger.critical("Connection error when attempting to access Portal. Bailing out.")
+                quit()
             except ProjectNotFound:
                 n-=1
             except IndexError:  #we've run out of path segments
