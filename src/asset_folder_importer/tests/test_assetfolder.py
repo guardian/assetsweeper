@@ -48,7 +48,7 @@ class TestAssetfolder(unittest.TestCase):
         self.assertRaises(ProjectNotFound,l.find_assetfolder,'/path/to/my/asset_folder')
  
     def test_locator_error(self):
-        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, HTTPError
+        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, SweeperHTTPError
         
         conn = http.client.HTTPConnection('localhost', 8080)
         errstatus = json.dumps({"status": "error", "error": "some trace"})
@@ -59,7 +59,7 @@ class TestAssetfolder(unittest.TestCase):
         
         l = AssetFolderLocator(passwd='fake_password', http_client=conn)
         
-        self.assertRaises(HTTPError,l.find_assetfolder,'/path/to/my/asset_folder')
+        self.assertRaises(SweeperHTTPError,l.find_assetfolder,'/path/to/my/asset_folder')
             
         # self.assertEqual(ex.exception.response.status, 500)
         # self.assertEqual(ex.exception.url, "http://localhost:80/gnm_asset_folder/lookup?path=%2Fpath%2Fto%2Fmy%2Fasset_folder")

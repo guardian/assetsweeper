@@ -19,6 +19,7 @@ import asset_folder_importer.externalprovider as externalprovider
 from subprocess import Popen,PIPE
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from glob import glob
+from asset_folder_importer.pluto.assetfolder import SweeperHTTPError
 
 __version__ = 'asset_folder_vsingester $$'
 __scriptname__ = 'asset_folder_vsingester'
@@ -76,6 +77,7 @@ class ImporterThread(threading.Thread):
             providers_config_file = '/etc/asset_folder_importer/footage_providers.yml'
 
         self.providers_list = externalprovider.ExternalProviderList(providers_config_file)
+        self.portal_error = False
         
     def get_cubase_data(self, filepath, filename):
         """
@@ -175,7 +177,7 @@ class ImporterThread(threading.Thread):
         return stdout
         
     def ask_pluto_for_projectid(self, filepath):
-        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound, HTTPError
+        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
         l = AssetFolderLocator(scheme=self.cfg.value('pluto_scheme',default="http"), host=self.cfg.value('pluto_host'), port=self.cfg.value('pluto_port'),
                                 user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         
@@ -193,9 +195,6 @@ class ImporterThread(threading.Thread):
                     return None #we've run out of path to check
                 project_id = l.find_assetfolder(test_path)
                 return project_id
-            except HTTPError:
-                self.logger.critical("Connection error when attempting to access Portal. Bailing out.")
-                quit()
             except ProjectNotFound:
                 n-=1
             except IndexError:  #we've run out of path segments
@@ -239,6 +238,7 @@ class ImporterThread(threading.Thread):
         return False
     
     def run(self):
+        from asset_folder_importer.pluto.assetfolder import HTTPError
         self.logger.info("In importer_thread::run...")
         while True:
             try:
@@ -282,6 +282,13 @@ class ImporterThread(threading.Thread):
                 self.db.insert_sysparam("warning", msgstring)
             except FileOnIgnoreList:
                 self.ignored += 1
+            except SweeperHTTPError as e:
+                msgstring = "WARNING: HTTP error communicating with Vidispine attempting to import %s: %s" % (
+                    filepath, e)
+                self.logger.warning(msgstring)
+                self.logger.warning(traceback.format_exc())
+                self.db.insert_sysparam("warning", msgstring)
+                self.portal_error = True
             except Exception as e:
                 msgstring = "WARNING: error {0} occurred: {1}".format(e.__class__, e)
                 self.logger.warning(msgstring)
