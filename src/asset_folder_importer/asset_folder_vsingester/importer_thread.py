@@ -238,7 +238,6 @@ class ImporterThread(threading.Thread):
         return False
     
     def run(self):
-        from asset_folder_importer.pluto.assetfolder import HTTPError
         self.logger.info("In importer_thread::run...")
         while True:
             try:

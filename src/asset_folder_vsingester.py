@@ -92,6 +92,9 @@ def innerMainFunc(cfg,db,limit, keeplist):
 
     for t in threads:
         t.join()
+        if t.portal_error is True:
+            logging.critical("Error accessing Portal. Bailing out.")
+            raise PortalHTTPError
         if t.isAlive():
             logging.warning("Thread {0} did not terminate properly".format(t.get_ident()))
 
