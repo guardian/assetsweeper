@@ -42,10 +42,13 @@ def file_has_any_extension(filename, extensionlist):
 
 
 def test_portal_connection(filepath, cfg):
-    from asset_folder_importer.pluto.assetfolder import AssetFolderLocator
+    from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
     tester = AssetFolderLocator(scheme=cfg.value('pluto_scheme',default="http"), host=cfg.value('pluto_host'), port=cfg.value('pluto_port'),
                            user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
-    tester.find_assetfolder(filepath)
+    try:
+        tester.find_assetfolder(filepath)
+    except ProjectNotFound:
+        pass
     return None
 
 
