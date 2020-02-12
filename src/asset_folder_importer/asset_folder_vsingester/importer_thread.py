@@ -281,7 +281,7 @@ class ImporterThread(threading.Thread):
             except FileOnIgnoreList:
                 self.ignored += 1
             except SweeperHTTPError as e:
-                msgstring = "WARNING: HTTP error communicating with Vidispine attempting to import %s: %s" % (
+                msgstring = "WARNING: HTTP error communicating with Portal attempting to import %s: %s" % (
                     filepath, e)
                 self.logger.warning(msgstring)
                 self.logger.warning(traceback.format_exc())
