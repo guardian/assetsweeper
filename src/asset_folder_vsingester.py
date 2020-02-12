@@ -90,17 +90,22 @@ def innerMainFunc(cfg,db,limit, keeplist):
     for t in threads:
         input_queue.put((None,None,None))
 
+    portal_problem = False
+
     for t in threads:
         t.join()
         if t.portal_error is True:
-            logging.critical("Error accessing Portal. Bailing out.")
-            raise PortalHTTPError
+            portal_problem = True
         if t.isAlive():
             logging.warning("Thread {0} did not terminate properly".format(t.get_ident()))
 
         found += t.found
         withItems += t.withItems
         imported += t.imported
+
+    if portal_problem:
+        logging.critical("Error accessing Portal. Bailing out.")
+        raise PortalHTTPError
 
     db.insert_sysparam("without_vsid",n)
     db.insert_sysparam("found_in_vidispine",found)
