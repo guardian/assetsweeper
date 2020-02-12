@@ -11,6 +11,7 @@ from queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
 import importlib
+from asset_folder_importer.pluto.assetfolder import SweeperHTTPError
 
 MAXTHREADS = 8
 #suid perl script so we don't need to run the whole shebang as root
@@ -39,8 +40,22 @@ def file_has_any_extension(filename, extensionlist):
 
     return False
 
+
+def test_portal_connection(filepath, cfg):
+    from asset_folder_importer.pluto.assetfolder import AssetFolderLocator
+    tester = AssetFolderLocator(scheme=cfg.value('pluto_scheme',default="http"), host=cfg.value('pluto_host'), port=cfg.value('pluto_port'),
+                           user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
+    tester.find_assetfolder(filepath)
+    return None
+
+
 #This function is the main program, but is contained here to make it easier to catch exceptions
 def innerMainFunc(cfg,db,limit, keeplist):
+    try:
+        test_portal_connection('/start/up/test.mxf', cfg)
+    except SweeperHTTPError:
+        logging.critical("Error accessing Portal. Bailing out.")
+        raise PortalHTTPError
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
