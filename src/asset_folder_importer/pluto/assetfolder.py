@@ -7,9 +7,8 @@ import json
 logger = logging.getLogger(__name__)
 
 class SweeperHTTPError(Exception):
-    def __init__(self, url, responseobject):
-        self.response = responseobject
-        self.url = url
+    pass
+
 
 class ProjectNotFound(Exception):
     pass
@@ -58,7 +57,7 @@ class AssetFolderLocator(object):
         
         if response.status<200 or response.status>299:
             logger.warning("Could not find asset folder: server returned {0} with body {1}".format(response.status, raw_content))
-            raise SweeperHTTPError(url, response)
+            raise SweeperHTTPError
         
         content = json.loads(raw_content)
         
