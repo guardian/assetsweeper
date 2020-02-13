@@ -523,6 +523,7 @@ class importer_db:
 
     #since should be a datetime object
     def files(self,since=None,pathspec=None,namespec=None,reverse_order=False):
+        self.conn.set_client_encoding('UTF8')
         sqlcmd = self._gen_sqlcmd("files", since=since,pathspec=pathspec,namespec=namespec,reverse_order=reverse_order)
         cursor=self.conn.cursor()
         cursor.execute(sqlcmd)

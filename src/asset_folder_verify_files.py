@@ -75,12 +75,12 @@ try:
             logger.info("Found %d files existing, %d files missing\r" % (files_existing,files_nonexisting))
             c=0
 
-        filepath = os.path.join(fileref['filepath'],fileref['filename'])
+        filepath = os.path.join(fileref['filepath'],fileref['filename']).encode('utf8')
         if os.path.exists(filepath):
             files_existing += 1
             continue
 
-        altpath = pathreplacematch.sub("/Volumes",filepath)
+        altpath = pathreplacematch.sub("/Volumes",filepath.decode('utf8'))
         if os.path.exists(altpath):
             files_existing += 1
             continue
