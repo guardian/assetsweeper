@@ -281,12 +281,13 @@ class ImporterThread(threading.Thread):
             except FileOnIgnoreList:
                 self.ignored += 1
             except SweeperHTTPError as e:
-                msgstring = "WARNING: HTTP error communicating with Portal attempting to import %s: %s" % (
+                msgstring = "ERROR: HTTP error communicating with Portal attempting to import %s: %s" % (
                     filepath, e)
-                self.logger.warning(msgstring)
-                self.logger.warning(traceback.format_exc())
-                self.db.insert_sysparam("warning", msgstring)
+                self.logger.error(msgstring)
+                self.logger.error(traceback.format_exc())
+                self.db.insert_sysparam("error", msgstring)
                 self.portal_error = True
+                break
             except Exception as e:
                 msgstring = "WARNING: error {0} occurred: {1}".format(e.__class__, e)
                 self.logger.warning(msgstring)
@@ -426,6 +427,8 @@ class ImporterThread(threading.Thread):
                 attempts += 1
 
         project_from_pluto = self.ask_pluto_for_projectid(os.path.join(fileref['filepath'], fileref['filename']))
+        if project_from_pluto is not None:
+            logging.info("Found project id. {0} for item at {1}".format(project_from_pluto, os.path.join(fileref['filepath'], fileref['filename'])))
         
         if vsfile.memberOfItem is not None:
             self.logger.info("Found file %s in Vidispine at file id %s, item id %s" % (

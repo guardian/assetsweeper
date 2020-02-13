@@ -42,6 +42,12 @@ def file_has_any_extension(filename, extensionlist):
 
 
 def test_portal_connection(filepath, cfg):
+    """
+    Returns None if the Portal connection works. Raises SweeperHTTPError if no connection could be established.
+    :param filepath: The path to test
+    :param cfg: Configuration data for use connecting to Portal
+    :return: None
+    """
     from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
     tester = AssetFolderLocator(scheme=cfg.value('pluto_scheme',default="http"), host=cfg.value('pluto_host'), port=cfg.value('pluto_port'),
                            user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
@@ -54,11 +60,7 @@ def test_portal_connection(filepath, cfg):
 
 #This function is the main program, but is contained here to make it easier to catch exceptions
 def innerMainFunc(cfg,db,limit, keeplist):
-    try:
-        test_portal_connection('/start/up/test.mxf', cfg)
-    except SweeperHTTPError:
-        logging.critical("Error accessing Portal. Bailing out.")
-        raise PortalHTTPError
+    test_portal_connection('/start/up/test.mxf', cfg)
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
@@ -123,7 +125,7 @@ def innerMainFunc(cfg,db,limit, keeplist):
 
     if portal_problem:
         logging.critical("Error accessing Portal. Bailing out.")
-        raise PortalHTTPError
+        raise SweeperHTTPError
 
     db.insert_sysparam("without_vsid",n)
     db.insert_sysparam("found_in_vidispine",found)

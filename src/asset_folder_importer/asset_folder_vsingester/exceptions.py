@@ -19,7 +19,3 @@ class VSFileInconsistencyError(Exception):
     Raised if we get a 503 error from trying to create a file entity in Vidispine.
     """
     pass
-
-
-class PortalHTTPError(Exception):
-    pass
