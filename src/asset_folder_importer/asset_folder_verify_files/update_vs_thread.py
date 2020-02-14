@@ -110,8 +110,7 @@ class UpdateVsThread(threading.Thread):
         :return:
         """
         while True:
-            queue_item = self._q.get(timeout=self.timeout)
-            item = queue_item.item
+            item = self._q.get(timeout=self.timeout).item
             if item is None:
                 logger.warning("Received null, terminating thread")
                 return
