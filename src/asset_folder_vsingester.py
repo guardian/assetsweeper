@@ -11,6 +11,7 @@ from queue import Queue
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from asset_folder_importer.asset_folder_vsingester.importer_thread import *
 import importlib
+from asset_folder_importer.pluto.assetfolder import SweeperHTTPError
 
 MAXTHREADS = 8
 #suid perl script so we don't need to run the whole shebang as root
@@ -39,8 +40,27 @@ def file_has_any_extension(filename, extensionlist):
 
     return False
 
+
+def test_portal_connection(filepath, cfg):
+    """
+    Returns None if the Portal connection works. Raises SweeperHTTPError if no connection could be established.
+    :param filepath: The path to test
+    :param cfg: Configuration data for use connecting to Portal
+    :return: None
+    """
+    from asset_folder_importer.pluto.assetfolder import AssetFolderLocator, ProjectNotFound
+    tester = AssetFolderLocator(scheme=cfg.value('pluto_scheme',default="http"), host=cfg.value('pluto_host'), port=cfg.value('pluto_port'),
+                           user=cfg.value('vs_user'), passwd=cfg.value('vs_password'))
+    try:
+        tester.find_assetfolder(filepath)
+    except ProjectNotFound:
+        pass
+    return None
+
+
 #This function is the main program, but is contained here to make it easier to catch exceptions
 def innerMainFunc(cfg,db,limit, keeplist):
+    test_portal_connection('/start/up/test.mxf', cfg)
     storageid=cfg.value('vs_masters_storage')
     logging.info("Connecting to storage with ID %s" % storageid)
     st=VSStorage(host=cfg.value('vs_host'),port=cfg.value('vs_port'),user=cfg.value('vs_user'),passwd=cfg.value('vs_password'))
@@ -90,14 +110,22 @@ def innerMainFunc(cfg,db,limit, keeplist):
     for t in threads:
         input_queue.put((None,None,None))
 
+    portal_problem = False
+
     for t in threads:
         t.join()
+        if t.portal_error is True:
+            portal_problem = True
         if t.isAlive():
             logging.warning("Thread {0} did not terminate properly".format(t.get_ident()))
 
         found += t.found
         withItems += t.withItems
         imported += t.imported
+
+    if portal_problem:
+        logging.critical("Error accessing Portal. Bailing out.")
+        raise SweeperHTTPError
 
     db.insert_sysparam("without_vsid",n)
     db.insert_sysparam("found_in_vidispine",found)
@@ -164,7 +192,7 @@ try:
     db.insert_sysparam("exit","success")
 except Exception as e:
     logging.error("An error occurred:")
-    logging.error(str(e.__class__) + ": " + e)
+    logging.error(str(e.__class__) + ": " + str(e))
     logging.error(traceback.format_exc())
 
     msgstring="{0}: {1}".format(str(e.__class__),e)

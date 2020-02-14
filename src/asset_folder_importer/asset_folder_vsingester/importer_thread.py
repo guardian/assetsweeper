@@ -19,6 +19,7 @@ import asset_folder_importer.externalprovider as externalprovider
 from subprocess import Popen,PIPE
 from asset_folder_importer.asset_folder_vsingester.exceptions import *
 from glob import glob
+from asset_folder_importer.pluto.assetfolder import SweeperHTTPError
 
 __version__ = 'asset_folder_vsingester $$'
 __scriptname__ = 'asset_folder_vsingester'
@@ -76,6 +77,7 @@ class ImporterThread(threading.Thread):
             providers_config_file = '/etc/asset_folder_importer/footage_providers.yml'
 
         self.providers_list = externalprovider.ExternalProviderList(providers_config_file)
+        self.portal_error = False
         
     def get_cubase_data(self, filepath, filename):
         """
@@ -200,7 +202,7 @@ class ImporterThread(threading.Thread):
                 break
         return None
     
-    def attempt_add_to_project(self, filepath, preludeproject, cubaseref, vsfile):
+    def attempt_add_to_project(self, filepath, preludeproject, cubaseref, vsfile, projectid):
         VSprojectRef = VSCollection(host=self.cfg.value('vs_host'), port=self.cfg.value('vs_port'),
                                     user=self.cfg.value('vs_user'), passwd=self.cfg.value('vs_password'))
         if preludeproject:
@@ -224,13 +226,12 @@ class ImporterThread(threading.Thread):
                 self.db.commit()
         else:
             #otherwise, ask Pluto's gnm_asset_folder plugin to look up the file path for us
-            projectId = self.ask_pluto_for_projectid(filepath)
-            if projectId is None:
+            if projectid is None:
                 self.db.insert_sysparam("warning", "Pluto has no record of asset folder for %s" % filepath)
                 self.logger.warning("Pluto has no record of asset folder for %s" % filepath)
                 self.db.commit()
             else:
-                VSprojectRef.name = projectId
+                VSprojectRef.name = projectid
                 VSprojectRef.addToCollection(vsfile.memberOfItem, type="item")
                 return True
         return False
@@ -279,6 +280,14 @@ class ImporterThread(threading.Thread):
                 self.db.insert_sysparam("warning", msgstring)
             except FileOnIgnoreList:
                 self.ignored += 1
+            except SweeperHTTPError as e:
+                msgstring = "ERROR: HTTP error communicating with Portal attempting to import %s: %s" % (
+                    filepath, e)
+                self.logger.error(msgstring)
+                self.logger.error(traceback.format_exc())
+                self.db.insert_sysparam("error", msgstring)
+                self.portal_error = True
+                break
             except Exception as e:
                 msgstring = "WARNING: error {0} occurred: {1}".format(e.__class__, e)
                 self.logger.warning(msgstring)
@@ -416,12 +425,16 @@ class ImporterThread(threading.Thread):
                         logging.warning("Received {0} HTTP error from Vidispine. Retrying.".format(e.code))
 
                 attempts += 1
+
+        project_from_pluto = self.ask_pluto_for_projectid(os.path.join(fileref['filepath'], fileref['filename']))
+        if project_from_pluto is not None:
+            logging.info("Found project id. {0} for item at {1}".format(project_from_pluto, os.path.join(fileref['filepath'], fileref['filename'])))
         
         if vsfile.memberOfItem is not None:
             self.logger.info("Found file %s in Vidispine at file id %s, item id %s" % (
                 filepath, vsfile.name, vsfile.memberOfItem.name))
             self.db.update_file_vidispine_id(fileref['id'], vsfile.memberOfItem.name)
-            self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), None, None, vsfile)
+            self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), None, None, vsfile, project_from_pluto)
                 
             withItems += 1
         else:
@@ -524,7 +537,7 @@ class ImporterThread(threading.Thread):
                         # no point in doing the below, since it relies on having a project reference available
                         return (found, withItems, imported)
                     
-                if not self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), preludeproject, cubaseref, vsfile):
+                if not self.attempt_add_to_project(os.path.join(fileref['filepath'],fileref['filename']), preludeproject, cubaseref, vsfile, project_from_pluto):
                     return (found, withItems, imported)
 
             except FileDoesNotExist as e:
