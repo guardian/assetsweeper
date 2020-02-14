@@ -124,6 +124,17 @@ class importer_db:
         sqlcmd = "create index system_key on system (key);"
         cursor.execute(sqlcmd)
 
+    def update_schema_23(self):
+        cursor = self.conn.cursor()
+        sqlcmd = "ALTER TABLE files DROP CONSTRAINT files_prelude_ref_fkey;"
+        cursor.execute(sqlcmd)
+        sqlcmd = "ALTER TABLE sidecar_files DROP CONSTRAINT sidecar_fileref_fkey;"
+        cursor.execute(sqlcmd)
+        sqlcmd = "ALTER TABLE ONLY files ADD CONSTRAINT files_prelude_ref_fkey FOREIGN KEY (prelude_ref) REFERENCES prelude_clips(id) ON DELETE CASCADE;"
+        cursor.execute(sqlcmd)
+        sqlcmd = "ALTER TABLE ONLY sidecar_files ADD CONSTRAINT sidecar_fileref_fkey FOREIGN KEY (file_ref) REFERENCES files(id) ON DELETE CASCADE;"
+        cursor.execute(sqlcmd)
+
     def _has_table(self,tablename,schemaname="public"):
         cursor = self.conn.cursor()
         sqlcmd = """
@@ -164,6 +175,10 @@ class importer_db:
         if not self._has_table('run_history'):
             self.update_schema_22()
             self.conn.commit()
+
+    def check_schema_23(self):
+        if self._has_table('files'):
+            self.update_schema_23()
 
     def insert_sysparam(self,key,value):
         cursor=self.conn.cursor()

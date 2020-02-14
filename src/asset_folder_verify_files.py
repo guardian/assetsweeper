@@ -53,6 +53,8 @@ logging.info("Checking schema version...")
 db.check_schema_20()
 db.check_schema_21()
 db.check_schema_22()
+db.check_schema_23()
+
 logging.info("done.")
 
 db.start_run(__scriptname__)
@@ -81,7 +83,7 @@ try:
             continue
 
         altpath = pathreplacematch.sub("/Volumes",filepath.decode('utf8'))
-        if os.path.exists(altpath):
+        if os.path.exists(altpath.encode('utf8')):
             files_existing += 1
             continue
 
