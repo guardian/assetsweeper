@@ -130,9 +130,9 @@ class importer_db:
         cursor.execute(sqlcmd)
         sqlcmd = "ALTER TABLE sidecar_files DROP CONSTRAINT sidecar_fileref_fkey;"
         cursor.execute(sqlcmd)
-        sqlcmd = "ALTER TABLE ONLY files ADD CONSTRAINT files_prelude_ref_fkey FOREIGN KEY (prelude_ref) REFERENCES prelude_clips(id) ON DELETE CASCADE;"
+        sqlcmd = "ALTER TABLE ONLY files ADD CONSTRAINT files_prelude_ref_fkey_new FOREIGN KEY (prelude_ref) REFERENCES prelude_clips(id) ON DELETE CASCADE;"
         cursor.execute(sqlcmd)
-        sqlcmd = "ALTER TABLE ONLY sidecar_files ADD CONSTRAINT sidecar_fileref_fkey FOREIGN KEY (file_ref) REFERENCES files(id) ON DELETE CASCADE;"
+        sqlcmd = "ALTER TABLE ONLY sidecar_files ADD CONSTRAINT sidecar_fileref_fkey_new FOREIGN KEY (file_ref) REFERENCES files(id) ON DELETE CASCADE;"
         cursor.execute(sqlcmd)
 
     def _has_table(self,tablename,schemaname="public"):
@@ -163,6 +163,15 @@ class importer_db:
             return True
         return False
 
+    def _has_constraint(self, tablename, constraintname):
+        cursor = self.conn.cursor()
+        sqlcmd="select constraint_name from information_schema.constraint_table_usage where table_name=%s and constraint_name=%s"
+        logging.debug("Checking for existence of constraint {1} in table {0}".format(tablename, constraintname))
+        cursor.execute(sqlcmd, (tablename, constraintname))
+        if cursor.fetchone() is not None:
+            return True
+        return False
+
     def check_schema_20(self):
         if not self._has_table('deleted_files'):
             self.update_schema_20()
@@ -177,7 +186,7 @@ class importer_db:
             self.conn.commit()
 
     def check_schema_23(self):
-        if self._has_table('files'):
+        if self._has_constraint('prelude_clips', 'files_prelude_ref_fkey'):
             self.update_schema_23()
 
     def insert_sysparam(self,key,value):
