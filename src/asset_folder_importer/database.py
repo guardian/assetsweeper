@@ -429,20 +429,20 @@ class importer_db:
         self.conn.commit()
 
         #does the file already exist? If so leave it (avoiding database bloat)
-        cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath,filename))
+        cursor.execute("select imported_id from files where filepath=%s and filename=%s",(filepath.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace'), filename.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace')))
         result = cursor.fetchone()
         if result is not None:
-            logging.debug("File {0}/{1} already exists with id {2}, not touching it".format(filepath, filename, result[0]))
+            logging.debug("File {0}/{1} already exists with id {2}, not touching it".format(filepath.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace'), filename.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace'), result[0]))
             return
 
         try:
-            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (filename, filepath))
+            cursor.execute("insert into files (filename,filepath,last_seen) values (%s,%s,now()) returning id", (filename.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace'), filepath.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace')))
             inserted_record_id = cursor.fetchone()[0]
         except psycopg2.IntegrityError as e:
             #this should normally not happen, but it's possible for a race condition to develop
             #between the SELECT check and the INSERT command if multiple instances are running so it's kept to deal with that
             self.conn.rollback()
-            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (filename, filepath))
+            cursor.execute("update files set last_seen=now() where filename=%s and filepath=%s returning id,ignore", (filename.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace'), filepath.encode('utf-8', 'surrogateescape').decode('utf-8', 'replace')))
             inserted_record_id = cursor.fetchone()[0]
 
         sqlcmd="update files set mtime={mt}, atime={at}, ctime={ct}, size=%s, owner=%s, gid=%s, mime_type=%s where id=%s".format(
