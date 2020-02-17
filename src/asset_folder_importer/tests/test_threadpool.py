@@ -19,7 +19,8 @@ class TestThread(threading.Thread):
         from time import sleep
         
         while True:
-            (prio, item) = self._queue.get()
+            queue_item = self._queue.get()
+            item = queue_item.item
             if item is None: break
             self.processor(item)
             # simulate processing with a 10 second wait
@@ -93,5 +94,34 @@ class TestThreadpool(unittest.TestCase):
             sleep(1)
             thread_ref = pool._thread_list[0]   #use internal thread ref to test with
             self.assertEqual(thread_ref.outputvalue,testitem)
+        finally:
+            if pool is not None: pool.safe_terminate()
+
+    def test_put_queue_can_cope_with_more_than_two_items(self):
+        """
+        Test that the thread pool can cope with more than two items
+        :return:
+        """
+        from time import sleep
+        testitem = {
+            'a': 'dictionary'
+        }
+        testitemtwo = {
+            'b': 'dictionary_two'
+        }
+        testitemthree = {
+            'c': 'dictionary_three',
+            'd': 'dictionary_three',
+            'e': 'dictionary_three',
+            'f': 'dictionary_three',
+        }
+        pool = None
+        try:
+            pool = self.ThreadPool(TestThread,initial_size=1, keywordarg="string")
+            pool.put_queue(testitem)
+            sleep(1)
+            pool.put_queue(testitemtwo)
+            sleep(1)
+            pool.put_queue(testitemthree)
         finally:
             if pool is not None: pool.safe_terminate()

@@ -58,6 +58,7 @@ logging.info("Checking schema is up-to-date...")
 db.check_schema_20()
 db.check_schema_21()
 db.check_schema_22()
+db.check_schema_23()
 logging.info("done")
 
 lastruntime = db.lastrun_endtime()

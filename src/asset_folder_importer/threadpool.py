@@ -1,6 +1,15 @@
 from queue import PriorityQueue
 from threading import Lock
 from time import sleep, time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any = field(compare=False)
+
 
 class mutex_protected(object):
     def __init__(self, mutex):
@@ -58,7 +67,7 @@ class ThreadPool(object):
         """
         if priority<1:
             raise ValueError("Priority 0 is reserved")
-        self.queue.put((priority, item))
+        self.queue.put(PrioritizedItem(priority=priority,item=item))
 
     def pending(self):
         return self.queue.qsize()
