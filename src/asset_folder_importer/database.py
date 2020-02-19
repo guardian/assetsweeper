@@ -656,7 +656,7 @@ class importer_db:
             (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id
             """
 
-            cursor.execute(sqlcmd, (asset_name,asset_relink_skipped,asset_type,uuid,created_date,drop_frame,duration,file_path,
+            cursor.execute(sqlcmd, (asset_name.decode("utf-8"),asset_relink_skipped,asset_type,uuid,created_date,drop_frame,duration,file_path.decode("utf-8"),
             frame_rate,import_date,parent_uuid,start_time,project_ref))
 
         except psycopg2.IntegrityError as e:
@@ -676,8 +676,8 @@ class importer_db:
             parent_id=%s
             where class_id=%s and file_path=%s returning id"""
 
-            cursor.execute(sqlcmd,(asset_name,asset_relink_skipped,asset_type,created_date,drop_frame,duration,
-            frame_rate,import_date,parent_uuid,start_time,project_ref,uuid,file_path))
+            cursor.execute(sqlcmd,(asset_name.decode("utf-8"),asset_relink_skipped,asset_type,created_date,drop_frame,duration,
+            frame_rate,import_date,parent_uuid,start_time,project_ref,uuid,file_path.decode("utf-8")))
 
         self.conn.commit()
         result=cursor.fetchone()
