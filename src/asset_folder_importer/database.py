@@ -8,6 +8,7 @@ import platform
 import os
 import datetime as dt
 import logging
+from gnmvidispine.vidispine_api import always_string
 
 
 class DataError(Exception):
@@ -638,15 +639,17 @@ class importer_db:
     def upsert_prelude_clip(self,project_ref=None,asset_name=None,asset_relink_skipped=None,asset_type=None,
             uuid=None,created_date=None,drop_frame=None,duration=None,file_path=None,frame_rate=None,
             import_date=None,parent_uuid=None,start_time=None):
+        asset_name = always_string(asset_name)
+        file_path = always_string(file_path)
         cursor=self.conn.cursor()
 
         self.conn.commit()
 
         #does the prelude clip entry already exist? If so leave it (avoiding database bloat)
-        cursor.execute("SELECT id FROM prelude_clips WHERE asset_name=%s AND asset_type=%s", (asset_name.decode("utf-8"), asset_type, ))
+        cursor.execute("SELECT id FROM prelude_clips WHERE asset_name=%s AND asset_type=%s", (asset_name, asset_type, ))
         result = cursor.fetchone()
         if result is not None:
-            logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name.decode("utf-8"), asset_type))
+            logging.debug("Prelude clip {0}/{1} already exists in database, not touching it".format(asset_name, asset_type))
             return result[0]
 
         try:
@@ -656,7 +659,7 @@ class importer_db:
             (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id
             """
 
-            cursor.execute(sqlcmd, (asset_name.decode("utf-8"),asset_relink_skipped,asset_type,uuid,created_date,drop_frame,duration,file_path.decode("utf-8"),
+            cursor.execute(sqlcmd, (asset_name,asset_relink_skipped,asset_type,uuid,created_date,drop_frame,duration,file_path,
             frame_rate,import_date,parent_uuid,start_time,project_ref))
 
         except psycopg2.IntegrityError as e:
@@ -676,8 +679,8 @@ class importer_db:
             parent_id=%s
             where class_id=%s and file_path=%s returning id"""
 
-            cursor.execute(sqlcmd,(asset_name.decode("utf-8"),asset_relink_skipped,asset_type,created_date,drop_frame,duration,
-            frame_rate,import_date,parent_uuid,start_time,project_ref,uuid,file_path.decode("utf-8")))
+            cursor.execute(sqlcmd,(asset_name,asset_relink_skipped,asset_type,created_date,drop_frame,duration,
+            frame_rate,import_date,parent_uuid,start_time,project_ref,uuid,file_path))
 
         self.conn.commit()
         result=cursor.fetchone()
