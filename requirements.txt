@@ -8,4 +8,4 @@ future==0.18.2
 PyYAML==5.1
 python-dateutil==2.6.1
 dataclasses==0.7
-httplib2==0.17.0
+httplib2==0.18.0
