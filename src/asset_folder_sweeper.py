@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 from asset_folder_importer.database import *
 from asset_folder_importer.config import *
-from pprint import pprint
 from optparse import OptionParser
 import traceback
 from datetime import timedelta

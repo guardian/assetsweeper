@@ -14,7 +14,7 @@ Requirements:
 -------------
 
  - Postgres 9.0+
- - Python 2.6+
+ - Python 3.6+
  
 I would generally recommend running this in a VM container, but you can run it locally on a Mac (or probably Windows too!) if you want
 
