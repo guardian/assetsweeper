@@ -9,7 +9,6 @@ from asset_folder_importer.asset_folder_verify_files.update_vs_thread import Upd
 from asset_folder_importer.threadpool import ThreadPool
 from asset_folder_importer.config import configfile
 from asset_folder_importer.database import importer_db
-import raven
 from optparse import OptionParser
 import logging
 import sys
@@ -46,8 +45,6 @@ else:
 #Step three. Set up pools.
 pool = ThreadPool(UpdateVsThread,initial_size=int(options.threads), config=cfg)
 
-raven_client = raven.Client(dsn=cfg.value("sentry_dsn"))
-
 #Step four. Scan the database table and update VS
 #Now connect to db
 logger.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
@@ -58,7 +55,6 @@ try:
     lastruntime = db.lastrun_endtime()
     lastruntimestamp = 0
 except Exception as e:
-    raven_client.captureException()
     raise
 
 n=0

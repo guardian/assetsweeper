@@ -13,15 +13,15 @@ import time
 logger = logging.getLogger(__name__)
 
 
-class DataError(StandardError):
+class DataError(Exception):
     pass
 
 
-class ArgumentError(StandardError):
+class ArgumentError(Exception):
     pass
 
 
-class AlreadyLinkedError(StandardError):
+class AlreadyLinkedError(Exception):
     def __init__(self, fileid, vsprojectid):
         self.fileid = fileid
         self.vsprojectid = vsprojectid
@@ -74,11 +74,12 @@ class importer_db:
             cursor.execute(sqlcmd)
             self.conn.commit()
         except psycopg2.ProgrammingError as e:
-            print "Warning: %s" % e.message
+            logger.warning("Database complained: {0]".format(e))
             self.conn.rollback()
 
     def __del__(self):
-        self.conn.commit()
+        if hasattr(self, "conn"):
+            self.conn.commit()
 
     def update_schema_20(self):
         cursor = self.conn.cursor()
@@ -226,7 +227,7 @@ class importer_db:
         if not self.clientversion:
             raise ArgumentError("Cannot call database::lastrun_endtime without the client name/version string set. Call __init__ properly first.")
 
-        matches = re.search(u'^([\w\d_\-]+)',self.clientversion)
+        matches = re.search(r'^([\w\d_\-]+)',self.clientversion)
         if matches is None:
             raise ArgumentError("database::lastrun_endtime - Client version string does not provide a script name to search for at the start")
 
@@ -325,7 +326,7 @@ class importer_db:
     def upsert_edit_project(self,filepath,filename,uuid,version,desc=None,opens_with=None):
         cursor = self.conn.cursor()
 
-        matches=re.search(u'(\.[^\.]+)$',filename)
+        matches=re.search(r'(\.[^\.]+)$',filename)
         file_xtn=""
         if matches is not None:
             file_xtn=str(matches.group(1))
@@ -357,7 +358,7 @@ class importer_db:
     def log_project_issue(self,filepath,filename,problem="",detail="",desc=None,opens_with=None):
         cursor = self.conn.cursor()
 
-        matches=re.search(u'(\.[^\.]+)$',filename)
+        matches=re.search(r'(\.[^\.]+)$',filename)
         file_xtn = ""
         if matches is not None:
             file_xtn=str(matches.group(1))
@@ -370,11 +371,9 @@ class importer_db:
             cursor.execute("""insert into edit_projects (filename,filepath,type,problem,problem_detail,lastseen,valid)
             values (%s,%s,%s,%s,%s,now(),false) returning id""", (filename,filepath,typenum,problem,detail))
         except psycopg2.IntegrityError as e:
-            print str(e)
-            print traceback.format_exc()
+            logger.error(e)
             self.conn.rollback()
             cursor.execute("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
-        #print cursor.mogrify("""update edit_projects set lastseen=now(), valid=false, problem=%s, problem_detail=%s where filename=%s and filepath=%s returning id""", (problem,detail,filename,filepath))
         result=cursor.fetchone()
         id = result[0]
         self.conn.commit()
@@ -511,7 +510,7 @@ class importer_db:
             try:
                 sql_params.append("lastseen > '"+since.isoformat('T')+"'")
             except Exception as e:
-                print "Warning: importer_db::files: %s. 'since' argument is ignored." % e
+                logger.warning("importer_db::files: %s. 'since' argument is ignored." % e)
 
         if pathspec:
             sql_params.append("filepath like '%{path}%'".format(path=pathspec))
@@ -557,7 +556,7 @@ class importer_db:
     def update_file_ignore(self,fileid,ignflag):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long) and not isinstance(fileid,int):
+        if not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
         if ignflag:
             cursor.execute("update files set ignore=TRUE where id=%d" % fileid)
@@ -567,10 +566,10 @@ class importer_db:
     def update_file_vidispine_id(self,fileid,vsid):
         cursor=self.conn.cursor()
 
-        if not isinstance(fileid,long) and not isinstance(fileid,int):
+        if not isinstance(fileid,int):
             raise ArgumentError("fileid argument must be an integer")
 
-        if not re.match(u'^\w{2}-\d+',vsid):
+        if not re.match(r'^\w{2}-\d+',vsid):
             msg="Vidispine id {0} does not look like an integer".format(vsid)
             raise ArgumentError(msg)
 
@@ -708,6 +707,6 @@ class importer_db:
             cursor=self.conn.cursor()
             cursor.execute("insert into sidecar_files (file_ref,sidecar_path,sidecar_name) values (%s,%s,%s)", (fileid,sidecar_dir,sidecar_name))
         except:
-            print "Unable to update sidecar table"
+            logger.error("Unable to update sidecar table")
             self.conn.rollback()
-            raise StandardError("Debug: sidecar update failed")
+            raise Exception("Debug: sidecar update failed")

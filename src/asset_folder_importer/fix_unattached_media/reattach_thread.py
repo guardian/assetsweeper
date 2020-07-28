@@ -10,14 +10,13 @@ class ReattachThread(Thread):
     It links them, and also propagates media management flags from parent to child
     """
     
-    def __init__(self, input_queue, options=None, config=None, raven_client=None, timeout=500, logger=None, should_raise=False, *args, **kwargs):
+    def __init__(self, input_queue, options=None, config=None, timeout=500, logger=None, should_raise=False, *args, **kwargs):
         super(ReattachThread, self).__init__(*args, **kwargs)
         self._inq = input_queue
         self.logger = logging.getLogger("ReattachThread") if logger==None else logger
         self.logger.level = logging.DEBUG
         self.options = options
         self.config = config
-        self.raven_client = raven_client
         self.timeout=timeout
         self.should_raise = should_raise
         
@@ -58,7 +57,7 @@ class ReattachThread(Thread):
         self.logger.info("Updated metadata for item {0}".format(item.name))
     
     def run(self):
-        from Queue import Empty
+        from queue import Empty
         while True:
             try:
                 (prio,item) = self._inq.get(block=True, timeout=self.timeout)
@@ -69,6 +68,5 @@ class ReattachThread(Thread):
                 self.logger.error("Input queue timed out, exiting.")
                 break
             except Exception:
-                if self.raven_client is not None: self.raven_client.captureException()
                 if self.should_raise: raise
         self.logger.info("Reattach thread terminating")

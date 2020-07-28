@@ -1,11 +1,6 @@
 from __future__ import absolute_import
 import unittest
-import os
-import threading
 import mock
-import logging
-import httplib
-import json
 
 from asset_folder_importer.database import importer_db
 
@@ -25,7 +20,7 @@ class TestDatabase(unittest.TestCase):
         db.update_file_ignore(small_file_id,True)
         db.update_prelude_clip_fileref(1234,small_file_id)
         
-        large_file_id = 37931158242397423792L
+        large_file_id = 37931158242397423792
         db.update_file_vidispine_id(large_file_id, 'VX-1234')
         db.update_file_ignore(large_file_id,True)
         db.update_prelude_clip_fileref(1234, large_file_id)

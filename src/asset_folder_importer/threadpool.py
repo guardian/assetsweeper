@@ -1,29 +1,35 @@
-from Queue import PriorityQueue
-from mutex import mutex
+from queue import PriorityQueue
+import threading
 from time import sleep, time
 
 class mutex_protected(object):
+    """
+    A decorator that ensures that the decorated function/method is called in a unique thread context via mutex locking.
+    """
     def __init__(self, mutex):
+        if not isinstance(mutex, type(threading.Lock())):
+            raise TypeError("mutex must be a threading.Lock object")
         self._mutex = mutex
         
     def __call__(self, f):
         def wrapped_function(*args):
-            def callout(args):
+            def callout():
                 try:
                     f(*args)
                 finally:
-                    self._mutex.unlock()
-            self._mutex.lock(callout,args)
+                    self._mutex.release()
+            self._mutex.acquire(blocking=True)
+            callout()
         return wrapped_function
     
     
 class ThreadPool(object):
-    _mutex = mutex()
+    _mutex = threading.Lock()
     scale_down_timeout = 0.5    #wait on each thread this long when finding one that has terminated
     scale_down_longtimeout = 30
     scale_down_wait = 1         #wait this number of seconds between checking for terminating threads
     
-    class ScaleDownError(StandardError):
+    class ScaleDownError(Exception):
         pass
     
     def __init__(self, thread_cls, initial_size=1, min_size=0, max_size=10, *args,**kwargs):

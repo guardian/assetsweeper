@@ -13,7 +13,6 @@ from gnmvidispine.vidispine_api import *
 from gnmvidispine.vs_storage import VSStoragePathMap, VSStorage
 import time
 import datetime
-import raven
 
 # Configurable parameters
 LOGFORMAT = '%(asctime)-15s - %(name)s - %(levelname)s - %(message)s'
@@ -42,8 +41,6 @@ if options.configfile:
     cfg = configfile(options.configfile)
 else:
     cfg = configfile("/etc/asset_folder_importer.cfg")
-
-raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
 
 logfile = options.logfile
 if logfile is None:
@@ -125,7 +122,7 @@ try:
 
     if not os.path.exists(start_dir):
         msg = "The given start path %s does not exist." % start_dir
-        raise StandardError(msg)
+        raise Exception(msg)
 
     for (dirpath, dirname, filenames) in os.walk(start_dir):
         for f in filenames:
@@ -141,11 +138,11 @@ try:
                 continue
 
             file_mtime = dt.datetime.fromtimestamp(statinfo.st_mtime)
-            raven_client.user_context({
-                'filepath': filepath,
-                'statinfo': statinfo,
-                'mtime': file_mtime,
-            })
+            # raven_client.user_context({
+            #     'filepath': filepath,
+            #     'statinfo': statinfo,
+            #     'mtime': file_mtime,
+            # })
 
             if not options.fullrun:
                 if statinfo.st_mtime < lastruntimestamp:
@@ -155,7 +152,7 @@ try:
             lg.debug("last modified time: %s" % file_mtime)
             total_projects += 1
             try:
-                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, raven_client=raven_client, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
+                (project_refs, no_vsitem, not_in_db) = process_premiere_project(filepath, raven_client=None, vs_pathmap=vs_pathmap, db=db, cfg=cfg)
                 lg.info(
                     "Processed Premiere project %s which had %d references, of which %d were not in Vidispine yet and %d were not in the Asset Importer database" %
                     (filepath, project_refs, no_vsitem, not_in_db))
@@ -166,7 +163,7 @@ try:
             except NoMediaError:
                 lg.warning("Premiere project %s has no media references" % filepath)
             except VSException as e:
-                raven_client.captureException()
+                #raven_client.captureException()
                 lg.warning(
                     "Got error of type %s when processing premiere project %s (%s)" % (e.__class__, filepath, e.message))
 
@@ -185,7 +182,7 @@ try:
     db.commit()
 
 except Exception as e:
-    raven_client.captureException()
+    #raven_client.captureException()
     lg.error(traceback.format_exc())
 
     msgstring = "{0}: {1}".format(str(e.__class__), e.message)

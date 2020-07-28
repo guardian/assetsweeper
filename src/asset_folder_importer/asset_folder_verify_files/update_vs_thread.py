@@ -1,7 +1,6 @@
 import threading
 import logging
 from mock import MagicMock
-import raven
 import traceback
 import os.path
 from gnmvidispine.vidispine_api import VSException, VSNotFound
@@ -33,11 +32,6 @@ class UpdateVsThread(threading.Thread):
         self._storage.populate(self.config.value("vs_masters_storage"))
         self._sentry_context = {}
 
-        try:
-            self._raven_client = raven.Client(self.config.value("sentry_dsn"))
-        except Exception as e:
-            logger.error("Could not initialise Raven: {0}. Errors will not be logged to Sentry.".format(str(e)))
-            self._raven_client = None
 
     def update_sentry_context(self, data):
         """
@@ -45,28 +39,16 @@ class UpdateVsThread(threading.Thread):
         :param data: dictionary to set
         :return: True if set, otherwise False
         """
-        self._sentry_context.update(data)
-
-        if self._raven_client is not None:
-            self._raven_client.extra_context(self._sentry_context)
-            return True
-        else:
-            return False
+        return False
 
     def clear_sentry_context(self):
         """
         safe-clear for sentry context. No-op if sentry client is not set up.
         :return:
         """
-        self._sentry_context = {}
+        return False
 
-        if self._raven_client is not None:
-            self._raven_client.extra_context({})
-            return True
-        else:
-            return False
-
-    class NoUpdateNeeded(StandardError):
+    class NoUpdateNeeded(Exception):
         pass
 
     def check_should_update(self, filepath):
@@ -101,8 +83,6 @@ class UpdateVsThread(threading.Thread):
             logger.warning("Deleted file {0} not found in Vidispine".format(filepath))
         except VSException as e:
             logger.error("Vidispine error updating {0} to missing state".format(filepath))
-            if self._raven_client is not None:
-                self._raven_client.captureException()
 
     def run(self):
         """
@@ -119,7 +99,5 @@ class UpdateVsThread(threading.Thread):
                 self.process_item(item)
                 self.clear_sentry_context()
             except Exception as e:
-                if self._raven_client is not None:
-                    self._raven_client.captureException()
                 logger.error(traceback.format_exc())
                 self.clear_sentry_context()

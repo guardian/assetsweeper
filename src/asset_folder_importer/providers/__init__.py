@@ -1,4 +1,4 @@
-class ProviderError(StandardError):
+class ProviderError(Exception):
     pass
 
 

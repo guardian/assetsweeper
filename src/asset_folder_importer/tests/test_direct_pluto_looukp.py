@@ -1,12 +1,9 @@
 from __future__ import absolute_import
 import unittest
-import os
-import threading
 import mock
 import logging
-import httplib
 import json
-
+import requests
 
 class TestDirectPlutoLookup(unittest.TestCase):
     fake_host = 'localhost'
@@ -37,39 +34,35 @@ class TestDirectPlutoLookup(unittest.TestCase):
         from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
         logger = logging.getLogger("test")
         logger.debug=mock.MagicMock()
-        conn = httplib.HTTPConnection(self.fake_host,self.fake_port)
-        conn.request = mock.MagicMock()
-        conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(200,self.success_data))
-        
+
+        response_success = mock.MagicMock(requests.models.Response)
+        response_success.status_code = 200
+        response_success.text = self.success_data
+
         #test successful lookup
-        l = DirectPlutoLookup(conn=conn,logger=logger)
-        result = l.lookup('/path/to/something/')
-        conn.request.assert_called_once()
-        conn.getresponse.assert_called_once()
-        self.assertEqual(result,'VX-123')
+        with mock.patch("requests.get", return_value=response_success):
+            l = DirectPlutoLookup(logger=logger)
+            result = l.lookup('/path/to/something/')
+            self.assertEqual(result,'VX-123')
 
         #test unsuccessful lookup
-        conn = httplib.HTTPConnection(self.fake_host, self.fake_port)
-        conn.request = mock.MagicMock()
-        conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(404, self.notfound_data))
-        
-        l = DirectPlutoLookup(conn=conn)
-        result = l.lookup('/path/to/something')
-        conn.request.assert_called_once()
-        conn.getresponse.assert_called_once()
-        self.assertEqual(result,None)
-        
+        response_failure = mock.MagicMock(requests.models.Response)
+        response_failure.status_code = 404
+        response_failure.text = self.notfound_data
+
+        with mock.patch("requests.get", return_value=response_failure):
+            l = DirectPlutoLookup()
+            result = l.lookup('/path/to/something')
+            self.assertEqual(result,None)
+
     def test_retry(self):
         from asset_folder_importer.fix_unattached_media.direct_pluto_lookup import DirectPlutoLookup
-        
-        conn = httplib.HTTPConnection(self.fake_host, self.fake_port)
-        conn.request = mock.MagicMock()
-        conn.getresponse = mock.MagicMock(return_value=self.MockedResponse(504, ""))
-    
-        l = DirectPlutoLookup(conn=conn,max_retries=2,retry_delay=1)
-        result = l.lookup('/path/to/something')
-        conn.request.assert_called()
-        self.assertEqual(conn.request.call_count, 2)
-        conn.getresponse.assert_called()
-        self.assertEqual(conn.request.call_count,2)
-        self.assertEqual(result, None)
+
+        response = mock.MagicMock(requests.models.Response)
+        response.status_code = 504
+        response.text = ""
+
+        with mock.patch("requests.get", return_value=response):
+            l = DirectPlutoLookup(max_retries=2,retry_delay=1)
+            result = l.lookup('/path/to/something')
+            self.assertEqual(result, None)

@@ -1,8 +1,8 @@
-class InvalidDataError(StandardError):
+class InvalidDataError(Exception):
     pass
 
-class NoMediaError(StandardError):
+class NoMediaError(Exception):
     pass
 
-class NotInDatabaseError(StandardError):
+class NotInDatabaseError(Exception):
     pass

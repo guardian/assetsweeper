@@ -2,8 +2,6 @@ from . import BaseProvider,LookupError
 import httplib2
 import json
 import re
-import os
-from pprint import pprint, pformat
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,12 +45,10 @@ class Provider(BaseProvider):
             getty_id = re.sub(r'_[^_]*$','',getty_id)
             url_string = BASE_URL + "{0}?fields={1}".format(getty_id, "%2C".join(interesting_fields))
             resp, content = h.request(url_string,headers={'Api-Key': self.api_key, 'Accept': 'application/json'})
-            #print resp
 
             code = int(resp['status'])
 
             data = json.loads(content)
-            #pprint(data)
 
             if code == 403:
                 if 'message' in data and data['message'] == 'Account Over Queries Per Second Limit':
@@ -68,7 +64,6 @@ class Provider(BaseProvider):
                 raise LookupError("Unable to request data from Getty: {0} - {1}".format(code, content))
             break
 
-        #rtn = { 'grouped': {}, 'ungrouped': {}}
         rtn = {}
 
         rtn['title'] = data['title']
@@ -79,10 +74,9 @@ class Provider(BaseProvider):
         rtn['gnm_asset_user_keywords'] = []
         #No idea WHY we need to do it like this - but we do because x['text'] raises an error
         for x in data['keywords']:
-            for k, v in x.items():
+            for k, v in list(x.items()):
                 if k!='text':
                     continue
-                print "\t{0}=>{1}".format(k,v)
                 if re.match(r'^\s*$',v):
                     break
                 rtn['gnm_asset_user_keywords'].append(v)

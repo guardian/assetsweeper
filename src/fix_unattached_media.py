@@ -5,7 +5,6 @@ import elasticsearch
 import logging
 from optparse import OptionParser
 from pprint import pprint
-import raven
 from asset_folder_importer.fix_unattached_media.exceptions import *
 from asset_folder_importer.fix_unattached_media.collection_lookup import CollectionLookup
 from asset_folder_importer.config import configfile
@@ -121,30 +120,28 @@ try:
     pre_pool.safe_terminate()
     reattach_pool.safe_terminate()
     
-    print "------------------------------------------------\n\n"
+    print("------------------------------------------------\n\n")
     
     pprint(totals)
-    print "Invalid paths found:"
+    print("Invalid paths found:")
     pprint(invalid_paths)
 
-    print "Asset folders which could not be resolved to projects:"
+    print("Asset folders which could not be resolved to projects:")
     pprint(not_found)
     
 except Exception:
-    #capture the exception immediately
-    raven_client.captureException()
     
     #ensure that all enqueud actions have completed before terminating
     pre_pool.safe_terminate()
     reattach_pool.safe_terminate()
 
-    print "------------------------------------------------\n\n"
+    print("------------------------------------------------\n\n")
 
     pprint(totals)
-    print "Invalid paths found:"
+    print("Invalid paths found:")
     pprint(invalid_paths)
 
-    print "Asset folders which could not be resolved to projects:"
+    print("Asset folders which could not be resolved to projects:")
     pprint(not_found)
     
     raise

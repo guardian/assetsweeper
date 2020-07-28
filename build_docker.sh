@@ -16,4 +16,4 @@ fi
 
 docker build . -t andyg42/assetsweeper:${DOCKER_VERSION}
 docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-docker push andyg42/assetsweeper:${DOCKER_VERSION}
+#docker push andyg42/assetsweeper:${DOCKER_VERSION}

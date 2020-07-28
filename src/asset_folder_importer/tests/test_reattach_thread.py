@@ -9,7 +9,7 @@ import logging
 class TestReattachThread(unittest.TestCase):
     def test_runloop_timeout(self):
         from asset_folder_importer.fix_unattached_media import reattach_thread
-        from Queue import PriorityQueue
+        from queue import PriorityQueue
         q = PriorityQueue()
         
         logger = logging.getLogger("test_runloop")
@@ -18,7 +18,7 @@ class TestReattachThread(unittest.TestCase):
         logger.info = mock.MagicMock()
         logger.warning = mock.MagicMock()
         
-        rat = reattach_thread.ReattachThread(q,options=None,raven_client=None,timeout=2,logger=logger)
+        rat = reattach_thread.ReattachThread(q,options=None,timeout=2,logger=logger)
         
         rat.run()
         
@@ -27,20 +27,17 @@ class TestReattachThread(unittest.TestCase):
 
     def test_runloop_execute(self):
         from asset_folder_importer.fix_unattached_media import reattach_thread
-        from Queue import PriorityQueue
-        from raven import Client
+        from queue import PriorityQueue
         
         q = PriorityQueue()
-        
-        fake_client = Client('https://1234:5678@fake-sentry-server/1')
-        fake_client.captureException = mock.MagicMock()
+
         logger = logging.getLogger("test_runloop")
         logger.debug = mock.MagicMock()
         logger.error = mock.MagicMock()
         logger.info = mock.MagicMock()
         logger.warning = mock.MagicMock()
         
-        rat = reattach_thread.ReattachThread(q, options=None, raven_client=fake_client, timeout=2,
+        rat = reattach_thread.ReattachThread(q, options=None, timeout=2,
                                              logger=logger, should_raise=True)
         q.put((1, {'itemid': 'KP-1234', 'collectionid': 'KP-5678'}))
         rat.reattach = mock.MagicMock()

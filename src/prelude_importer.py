@@ -45,7 +45,7 @@ else:
     logging.basicConfig(format=LOGFORMAT, level=main_log_level)
 
 #Now connect to db
-print "Connecting to database on %s" % cfg.value('database_host',noraise=True)
+print("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 logging.info("Connecting to database on %s" % cfg.value('database_host',noraise=True))
 db = importer_db(__version__,hostname=cfg.value('database_host'),port=cfg.value('database_port'),username=cfg.value('database_user'),password=cfg.value('database_password'))
 db.check_schema_22()
@@ -53,7 +53,7 @@ db.start_run(__scriptname__)
 
 #Step three. Find some prelude files
 startpath=cfg.value('prelude_home')
-print "Running from '%s'" % startpath
+print("Running from '%s'" % startpath)
 db.insert_sysparam("startpath",startpath)
 
 st='success'
@@ -62,7 +62,7 @@ try:
     nclips=0
     if not os.path.exists(startpath):
         msg = "Provided Prelude project path %s does not exist on this server" % startpath
-        raise StandardError(msg)
+        raise Exception(msg)
 
     for dirpath,dirnames,filenames in os.walk(startpath):
         #print dirpath
@@ -88,7 +88,7 @@ try:
                 )
                 db.insert_sysparam("warning",msg)
                 db.commit()
-                print msg
+                print(msg)
 
             except InvalidXMLException as e:
                 msg = "WARNING: {name} is corrupted or not a Prelude project: {error}".format(
@@ -97,7 +97,7 @@ try:
                 )
                 db.insert_sysparam("warning",msg)
                 db.commit()
-                print msg
+                print(msg)
 except Exception as e:
     msg = "ERROR: {0}: {1}".format(
         e.__repr__(),
@@ -108,7 +108,7 @@ except Exception as e:
     db.insert_sysparam("traceback",traceback.format_exc())
     db.commit()
 
-print "Run finished: {0}. Found {1} prelude projects containing {2} clips".format(st,n,nclips)
+print("Run finished: {0}. Found {1} prelude projects containing {2} clips".format(st,n,nclips))
 
 db.insert_sysparam("found_prelude_projects",n)
 db.insert_sysparam("found_prelude_clips",nclips)

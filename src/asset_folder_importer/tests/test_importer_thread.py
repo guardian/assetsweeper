@@ -33,12 +33,12 @@ class TestImporterThread(unittest.TestCase):
                                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                            }),dbconn=db)
         
-        result = map(lambda x: x, i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=False))
+        result = [x for x in i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=False)]
         self.assertEqual(result,['/path/to/myfile.xml', '/path/to/myfile.xmp', '/path/to/myfile.meta', '/path/to/myfile.XML',
                                 '/path/to/myfile.XMP','/path/to/myfile.mp4.xml','/path/to/myfile.mp4.xmp','/path/to/myfile.mp4.meta',
                                 '/path/to/myfile.mp4.XML','/path/to/myfile.mp4.XMP'])
         
-        result = map(lambda x: x, i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=True))
+        result = [x for x in i.potentialSidecarFilenames("/path/to/myfile.mp4", isxdcam=True)]
         self.assertEqual(result,['/path/to/myfile.xml', '/path/to/myfile.xmp', '/path/to/myfile.meta',
                                 '/path/to/myfile.XML', '/path/to/myfile.XMP', '/path/to/myfile.mp4.xml',
                                 '/path/to/myfile.mp4.xmp', '/path/to/myfile.mp4.meta', '/path/to/myfile.mp4.XML',
@@ -95,11 +95,16 @@ class TestImporterThread(unittest.TestCase):
     def test_find_invalid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
+        from asset_folder_importer.pluto.assetfolder import ProjectNotFound
+        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator
 
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_",username="circletest",password="testpass")
 
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
+        mock_locator = mock.MagicMock(AssetFolderLocator)
+        mock_locator.find_assetfolder = mock.MagicMock(side_effect=ProjectNotFound)
+
+        with mock.patch('asset_folder_importer.pluto.assetfolder.AssetFolderLocator', return_value=mock_locator):
             logging.basicConfig(level=logging.ERROR)
             logger = logging.getLogger("tester")
             logger.setLevel(logging.ERROR)
@@ -107,19 +112,23 @@ class TestImporterThread(unittest.TestCase):
                                self.FakeConfig({
                                    'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                                }), dbconn=db)
-            
-            mock_connection.side_effect = lambda h,c: self.FakeConnection(json.dumps({'status': 'notfound'}),404)
+
+
             result = i.ask_pluto_for_projectid("/path/to/something/invalid/media.mxf")
             self.assertEqual(result,None)
 
     def test_find_valid_projectid(self):
         from asset_folder_importer.asset_folder_vsingester.importer_thread import ImporterThread
         from asset_folder_importer.database import importer_db
-        
+        from asset_folder_importer.pluto.assetfolder import AssetFolderLocator
+
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_", username="circletest", password="testpass")
-        
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
+
+        mock_locator = mock.MagicMock(AssetFolderLocator)
+        mock_locator.find_assetfolder = mock.MagicMock(return_value='KP-1234')
+
+        with mock.patch('asset_folder_importer.pluto.assetfolder.AssetFolderLocator', return_value=mock_locator):
             logging.basicConfig(level=logging.ERROR)
             logger = logging.getLogger("tester")
             logger.setLevel(logging.ERROR)
@@ -127,8 +136,7 @@ class TestImporterThread(unittest.TestCase):
                                self.FakeConfig({
                                    'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
                                }), dbconn=db)
-            
-            mock_connection.side_effect = lambda h, c: self.FakeConnection(json.dumps({'status': 'notfound'}), 404)
+
             result = i.ask_pluto_for_projectid("/path/to/my/assetfolder/with/subdirectories/media.mxf")
             self.assertEqual(result,'KP-1234')
 
@@ -150,19 +158,18 @@ class TestImporterThread(unittest.TestCase):
         mockstorage.create_file_entity = mock.MagicMock(side_effect=HTTPError(503,"GET","http://fake-url","Failed","I didn't expect the Spanish Inqusition",""))
         mockfile = mock.MagicMock(target=VSFile)
 
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
-            logging.basicConfig(level=logging.ERROR)
-            logger = logging.getLogger("tester")
-            logger.setLevel(logging.ERROR)
-            i = ImporterThread(None, None,
-                               self.FakeConfig({
-                                   'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
-                               }), dbconn=db)
+        logging.basicConfig(level=logging.ERROR)
+        logger = logging.getLogger("tester")
+        logger.setLevel(logging.ERROR)
+        i = ImporterThread(None, None,
+                           self.FakeConfig({
+                               'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+                           }), dbconn=db)
 
-            i.st = mockstorage
-            with self.assertRaises(VSFileInconsistencyError) as raised_error:
-                i.attempt_file_import(mockfile,"path/to/testfile","/rootpath")
-            self.assertEqual(str(raised_error.exception),"path/to/testfile")
+        i.st = mockstorage
+        with self.assertRaises(VSFileInconsistencyError) as raised_error:
+            i.attempt_file_import(mockfile,"path/to/testfile","/rootpath")
+        self.assertEqual(str(raised_error.exception),"path/to/testfile")
 
     class StalledJob(object):
         """
@@ -187,22 +194,21 @@ class TestImporterThread(unittest.TestCase):
 
         with mock.patch('psycopg2.connect') as mock_connect:
             db = importer_db("_test_Version_", username="circletest", password="testpass")
-            
-        with mock.patch('httplib.HTTPConnection') as mock_connection:
-            fake_job = self.StalledJob()
 
-            mock_vsfile = mock.MagicMock(target=gnmvidispine.vs_storage.VSFile)
-            mock_vsfile.importToItem = mock.MagicMock(return_value=fake_job)
+        fake_job = self.StalledJob()
 
-            i=ImporterThread(None,None,self.FakeConfig({
-                'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
-            }),dbconn=db,import_timeout=4)  #set importer timeout to 4s
-            start_time = time()
-            with self.assertRaises(ImportStalled):
-                i.do_real_import(mock_vsfile,"/path/to/filename","fake_xml",['tagone'])
-            self.assertGreaterEqual(time()-start_time,4)    #should have taken at least 4 seconds
-            mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW",jobMetadata={'gnm_app': 'vsingester'})
-            fake_job.abort.assert_called_once_with()
+        mock_vsfile = mock.MagicMock(target=gnmvidispine.vs_storage.VSFile)
+        mock_vsfile.importToItem = mock.MagicMock(return_value=fake_job)
+
+        i=ImporterThread(None,None,self.FakeConfig({
+            'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
+        }),dbconn=db,import_timeout=4)  #set importer timeout to 4s
+        start_time = time()
+        with self.assertRaises(ImportStalled):
+            i.do_real_import(mock_vsfile,"/path/to/filename","fake_xml",['tagone'])
+        self.assertGreaterEqual(time()-start_time,4)    #should have taken at least 4 seconds
+        mock_vsfile.importToItem.assert_called_once_with("fake_xml",tags=['tagone'],priority="LOW",jobMetadata={'gnm_app': 'vsingester'})
+        fake_job.abort.assert_called_once_with()
 
     xmlns = "{http://xml.vidispine.com/schema/vidispine}"
 
@@ -211,11 +217,11 @@ class TestImporterThread(unittest.TestCase):
         return node.text
 
     def _find_xml_field(self, parsed_xml, fieldname):
-        node_list = filter(lambda node: self._safe_get_xmlnode(node)==fieldname, parsed_xml.findall("{0}timespan/{0}field".format(self.xmlns)))
+        node_list = [x for x in filter(lambda node: self._safe_get_xmlnode(node)==fieldname, parsed_xml.findall("{0}timespan/{0}field".format(self.xmlns)))]
         return node_list
 
     def _field_node_values(self, fieldnode):
-        return map(lambda valuenode: valuenode.text, fieldnode.findall("{0}value".format(self.xmlns)))
+        return [valuenode.text for valuenode in fieldnode.findall("{0}value".format(self.xmlns))]
 
     def test_md_render(self):
         """
@@ -230,8 +236,8 @@ class TestImporterThread(unittest.TestCase):
 
         mock_db = MagicMock(target=importer_db)
         mock_fileref = MagicMock(target=VSFile)
-        mock_fileref.mtime = datetime(2018,01,04,15,32,00)
-        mock_fileref.ctime = datetime(2018,01,04,15,30,00)
+        mock_fileref.mtime = datetime(2018,1,4,15,32,00)
+        mock_fileref.ctime = datetime(2018,1,4,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
             'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
@@ -256,8 +262,8 @@ class TestImporterThread(unittest.TestCase):
 
         mock_db = MagicMock(target=importer_db)
         mock_fileref = MagicMock(target=VSFile)
-        mock_fileref.mtime = datetime(2018,01,04,15,32,00)
-        mock_fileref.ctime = datetime(2018,01,04,15,30,00)
+        mock_fileref.mtime = datetime(2018,1,4,15,32,00)
+        mock_fileref.ctime = datetime(2018,1,4,15,30,00)
 
         i=ImporterThread(None,None,self.FakeConfig({
             'footage_providers_config': '{0}/../../footage_providers.yml'.format(self.mydir)
@@ -323,4 +329,4 @@ class TestImporterThread(unittest.TestCase):
 
         i.attempt_file_import(mock_fileref, mock_fileref['filepath'], "/srv/Multimedia2/Media Production/Assets")
         mock_db.get_prelude_data.assert_called_once_with(None) #not ingested through prelude
-        mock_file.importToItem.assert_called_with('<?xml version="1.0" encoding="UTF-8"?>\n<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),\nOriginal Owner -->\n<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">\n  <group>Asset</group>\n  <timespan start="-INF" end="+INF">\n    <field>\n      <name>title</name>\n      <value>fancy title.aep (yadayada)</value>\n    </field>\n    <field>\n      <name>gnm_asset_category</name>\n      <value>Branding</value>\n    </field>\n    <field>\n      <name>gnm_asset_status</name>\n      <value>Ready for Editing</value>\n    </field>\n    <field>\n      <name>gnm_asset_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_filename</name>\n      <value>/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep</value>\n    </field>\n    <field>\n      <name>gnm_asset_file_last_modified</name>\n      <value>2017-04-28T09:18:53Z</value>\n    </field>\n    <field>\n      <name>gnm_rushes_general_original_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_createdby</name>\n      <value>803</value>\n    </field>\n    <!--date from fileref-->\n    <field>\n      <name>gnm_asset_file_created</name>\n      <value>2017-09-06T20:56:29Z</value>\n    </field>\n  </timespan>\n</MetadataDocument>\n', jobMetadata={'gnm_app': 'vsingester'}, priority='LOW', tags=None)
+        mock_file.importToItem.assert_called_with(b'<?xml version="1.0" encoding="UTF-8"?>\n<!-- need Created By, Original Filename, File Last Modified, Deep Archive (if applicable from project),\nOriginal Owner -->\n<MetadataDocument xmlns="http://xml.vidispine.com/schema/vidispine">\n  <group>Asset</group>\n  <timespan start="-INF" end="+INF">\n    <field>\n      <name>title</name>\n      <value>fancy title.aep (yadayada)</value>\n    </field>\n    <field>\n      <name>gnm_asset_category</name>\n      <value>Branding</value>\n    </field>\n    <field>\n      <name>gnm_asset_status</name>\n      <value>Ready for Editing</value>\n    </field>\n    <field>\n      <name>gnm_asset_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_filename</name>\n      <value>/tmp/Multimedia2/Media Production/Assets/Branding/Some Branding Kit/yadayada/fancy title.aep</value>\n    </field>\n    <field>\n      <name>gnm_asset_file_last_modified</name>\n      <value>2017-04-28T09:18:53Z</value>\n    </field>\n    <field>\n      <name>gnm_rushes_general_original_owner</name>\n      <value>803</value>\n    </field>\n    <field>\n      <name>gnm_asset_createdby</name>\n      <value>803</value>\n    </field>\n    <!--date from fileref-->\n    <field>\n      <name>gnm_asset_file_created</name>\n      <value>2017-09-06T20:56:29Z</value>\n    </field>\n  </timespan>\n</MetadataDocument>\n', jobMetadata={'gnm_app': 'vsingester'}, priority='LOW', tags=None)

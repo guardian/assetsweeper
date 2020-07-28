@@ -9,7 +9,6 @@ import datetime
 import time
 import logging
 from asset_folder_importer.asset_folder_sweeper.find_files import find_files
-import raven
 
 __author__ = 'Andy Gallagher <andy.gallagher@theguardian.com>'
 __version__ = 'asset_folder_sweeper $Rev$ $LastChangedDate$'
@@ -51,12 +50,7 @@ elif loglevel==3:
 else:
     main_log_level=logging.ERROR
 
-raven_client = raven.Client(dsn=cfg.value('sentry_dsn'))
-
 logfile = options.logfile
-if logfile is None:
-    logfile = cfg.value("log_file") #gives None if there is not a log_file entry.
-
 if logfile is not None:
     logging.basicConfig(filename=logfile, format=LOGFORMAT, level=main_log_level)
 else:
@@ -71,7 +65,6 @@ try:
     lastruntime = db.lastrun_endtime()
     lastruntimestamp = 0
 except Exception as e:
-    raven_client.captureException()
     raise
 
 if lastruntime is None:
@@ -112,20 +105,17 @@ logging.info("Last run of the script was at %s." % lastruntime)
 try:
     db.start_run(__scriptname__)
 except Exception as e:
-    raven_client.captureException()
     raise
 
 try:
     db.purge_system_messages(since=timedelta(days=int(cfg.value('system_message_purge_time',noraise=False))))
 except KeyError as e:
     logging.warning("Unable to purge old system messages as system_message_purge_time is not present in config file")
-    raven_client.captureException()
-except StandardError as e:
+except Exception as e:
     logging.error("Unable to purge old system messages because of problem: {0}".format(traceback.format_exc()))
-    raven_client.captureException()
 
 try:
-    n=find_files(cfg,db,raven_client=raven_client)
+    n=find_files(cfg,db,raven_client=None)
     db.insert_sysparam("file_records",n)
     db.insert_sysparam("exit","success")
     logging.info("Run completed. Found {0} file records.\n".format(n))
@@ -136,6 +126,5 @@ except Exception as e:
     db.insert_sysparam("traceback",traceback.format_exc())
     logging.error(traceback.format_exc())
     db.commit()
-    raven_client.captureException()
 
 db.end_run(status=None)

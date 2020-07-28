@@ -146,7 +146,7 @@ def update_invalid_media_paths(vsproject, invalid_media_paths):
         vsproject.set_metadata({'gnm_project_invalid_media_paths': invalid_media_paths}, mode="add")
 
 
-def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, cfg=None):
+def process_premiere_project(filepath, vs_pathmap=None, db=None, cfg=None):
     """
     Main function to process a Premiere project file
     :param filepath: file path to process
@@ -169,9 +169,6 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
     except Exception as e:
         lg.error("Unable to read '%s': %s" % (filepath,e.message))
         lg.error(traceback.format_exc())
-        print "Unable to read '%s': %s" % (filepath,e.message)
-        traceback.print_exc()
-        raven_client.captureException()
         return (0,0,0)
 
     lg.debug("determining project details and updating database...")
@@ -186,19 +183,16 @@ def process_premiere_project(filepath, raven_client, vs_pathmap=None, db=None, c
         project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
         lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
         lg.error(traceback.format_exc())
-        raven_client.captureException()
         return (0,0,0)
     except KeyError as e:
         project_id = db.log_project_issue(os.path.dirname(filepath), os.path.basename(filepath), problem="Invalid project file", detail="{0}: {1} {2}".format(e.__class__,str(e),traceback.format_exc()))
         db.insert_sysparam("warning","Unable to read project file '{0}' - {1}".format(filepath, str(e)))
         lg.error("Unable to read project file '{0}' - {1}".format(filepath,str(e)))
         lg.error(traceback.format_exc())
-        raven_client.captureException()
         return (0,0,0)
 
     except InvalidDataError as e:
         db.insert_sysparam("warning","Corrupted project file: {0} {1}".format(filepath,unicode(e)))
-        raven_client.captureException()
         return (0,0,0)
 
     total_files = 0

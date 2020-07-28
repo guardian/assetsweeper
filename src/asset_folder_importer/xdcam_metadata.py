@@ -4,12 +4,14 @@ __version__ = '$Rev$ $LastChangedDate$'
 import xml.etree.ElementTree as ET
 import os
 import datetime
-from pprint import pprint
+import logging
 
-class PathNotFoundError(StandardError):
+logger = logging.getLogger(__name__)
+
+class PathNotFoundError(Exception):
     pass
 
-class InvalidDataError(StandardError):
+class InvalidDataError(Exception):
     pass
 
 class XDCAMImporter:
@@ -215,5 +217,5 @@ class XDCAMImporter:
                 self.packageName=packageEl.attrib['name']
                 self.packageType=packageEl.attrib['type']
             except KeyError as e:
-                print "Warning: %s" % e.message
+                logger.warning(e)
 
